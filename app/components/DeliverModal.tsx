@@ -5,7 +5,6 @@ import { useOrders } from "../context/OrdersContext";
 import { useInventory } from "../context/InventoryContext";
 import { useMovements } from "../context/MovementsContext";
 
-
 export default function DeliverModal({
   order,
   onClose,
@@ -16,9 +15,9 @@ export default function DeliverModal({
   const [qty, setQty] = useState("");
 
   const { deliverOrder } = useOrders();
-  const { updateStock, products } = useInventory();
+  const { updateStock, products, getStock } =
+    useInventory();
   const { addMovement } = useMovements();
-
 
   if (!order) return null;
 
@@ -27,39 +26,50 @@ export default function DeliverModal({
   );
 
   function handleDeliver() {
-  const delivered = Number(qty);
-  if (!delivered || delivered <= 0) return;
+    const delivered = Number(qty);
+    if (!delivered || delivered <= 0) return;
 
-  const remaining =
-    order.quantity - order.delivered;
+    const remaining =
+      order.quantity - order.delivered;
 
-  if (delivered > remaining) {
-    alert(
-      `No se puede entregar más de lo pendiente (${remaining}).`
-    );
-    return;
+    if (delivered > remaining) {
+      alert(
+        `No se puede entregar más de lo pendiente (${remaining}).`
+      );
+      return;
+    }
+
+    deliverOrder(order.id, delivered);
+
+    if (product) {
+      const location = order.location;
+
+      const currentStock = getStock(
+        product.name,
+        location
+      );
+
+      const newStock =
+        currentStock + delivered;
+
+      updateStock(
+        product.name,
+        location,
+        newStock
+      );
+
+      // registrar movimiento
+      addMovement(
+        product.name,
+        location,
+        "ingreso",
+        delivered,
+        0
+      );
+    }
+
+    onClose();
   }
-
-  deliverOrder(order.id, delivered);
-
-  if (product) {
-    updateStock(
-      product.name,
-      product.stock + delivered
-    );
-
-    // ✅ registrar ingreso
-    addMovement(
-      product.name,
-      "ingreso",
-      delivered
-    );
-  }
-
-  onClose();
-}
-
-
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
