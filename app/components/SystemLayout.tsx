@@ -24,7 +24,7 @@ export default function SystemLayout({
   const { orders } = useOrders();
   const { user } = useUser();
 
-  /* ---------- LOCAL SELECCIONADO (admin) ---------- */
+  /* ---------- LOCAL SELECCIONADO (solo admin) ---------- */
   const [selectedLocation, setSelectedLocation] =
     useState<string>("marpla-lomas");
 
@@ -32,9 +32,7 @@ export default function SystemLayout({
   const effectiveLocation =
     user?.role === "ADMIN"
       ? selectedLocation
-      : user?.location ?? "marpla-lomas";
-      console.log("USER:", user);
-
+      : user?.location || "marpla-lomas";
 
   /* ---------- LABEL LOCAL ---------- */
   function getLocationLabel(location: string) {
@@ -45,26 +43,24 @@ export default function SystemLayout({
     return location.toUpperCase();
   }
 
-  /* ---------- HEADER LOCATION ---------- */
-  const headerLocation =
-    user?.role === "ADMIN"
-      ? selectedLocation
-      : user?.location ?? "marpla-lomas";
-
+  /* ---------- NOMBRE EN HEADER ---------- */
   const brandName =
-    getLocationLabel(headerLocation);
+    user?.role === "ADMIN"
+      ? getLocationLabel(selectedLocation)
+      : getLocationLabel(
+          user?.location || "marpla-lomas"
+        );
 
   /* ---------- PEDIDOS ACTIVOS ---------- */
-  const activeOrders = orders.filter(
-    (o) => {
-      if (o.status === "cumplido") return false;
+  const activeOrders = orders.filter((o) => {
+    if (o.status === "cumplido") return false;
 
-      if (user?.role === "ADMIN") return true;
+    if (user?.role === "ADMIN") return true;
 
-      return o.location === effectiveLocation;
-    }
-  );
+    return o.location === effectiveLocation;
+  });
 
+  /* ---------- TABS ---------- */
   const localTabs = [
     "stock",
     "solicitar",
@@ -141,11 +137,17 @@ export default function SystemLayout({
         {user?.role !== "ADMIN" && (
           <>
             {tab === "stock" && (
-              <StockList locationOverride={effectiveLocation} />
+              <StockList
+                locationOverride={
+                  effectiveLocation
+                }
+              />
             )}
 
             {tab === "solicitar" && (
-              <GlobalRequestForm location={effectiveLocation} />
+              <GlobalRequestForm
+                location={effectiveLocation}
+              />
             )}
 
             {tab === "pedidos" && (
@@ -173,6 +175,7 @@ export default function SystemLayout({
                           Faltan: {remaining}
                         </div>
                       </div>
+
                       <div className="text-sm font-semibold">
                         {statusLabel(o.status)}
                       </div>
@@ -189,7 +192,9 @@ export default function SystemLayout({
           <>
             {tab === "stock" && (
               <StockList
-                locationOverride={effectiveLocation}
+                locationOverride={
+                  effectiveLocation
+                }
               />
             )}
 
