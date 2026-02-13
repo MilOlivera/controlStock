@@ -33,6 +33,8 @@ export default function SystemLayout({
     user?.role === "ADMIN"
       ? selectedLocation
       : user?.location ?? "marpla-lomas";
+      console.log("USER:", user);
+
 
   /* ---------- LABEL LOCAL ---------- */
   function getLocationLabel(location: string) {
