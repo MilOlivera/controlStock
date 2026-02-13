@@ -39,11 +39,13 @@ export default function DeliverModal({
       return;
     }
 
+    // marcar entrega del pedido
     deliverOrder(order.id, delivered);
 
     if (product) {
       const location = order.location;
 
+      // stock actual del local
       const currentStock = getStock(
         product.name,
         location
@@ -52,13 +54,14 @@ export default function DeliverModal({
       const newStock =
         currentStock + delivered;
 
+      // actualizar stock del producto
       updateStock(
         product.name,
         location,
         newStock
       );
 
-      // registrar movimiento
+      // registrar movimiento de ingreso
       addMovement(
         product.name,
         location,
@@ -89,17 +92,19 @@ export default function DeliverModal({
 
         <div className="mb-4">
           <div className="text-sm text-zinc-400">
-            Pendiente
+            Pendiente total
           </div>
           <div className="bg-zinc-800 p-2 rounded mt-1">
-            {order.quantity}
+            {order.quantity - order.delivered}
           </div>
         </div>
 
         <input
           type="number"
           value={qty}
-          onChange={(e) => setQty(e.target.value)}
+          onChange={(e) =>
+            setQty(e.target.value)
+          }
           className="w-full p-2 rounded bg-zinc-800 outline-none mb-4"
           placeholder="Cantidad entregada ahora"
         />
