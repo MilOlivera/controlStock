@@ -34,7 +34,7 @@ export default function SystemLayout({
       ? selectedLocation
       : user?.location ?? "marpla-lomas";
 
-  /* ---------- NOMBRE LOCAL ---------- */
+  /* ---------- LABEL LOCAL ---------- */
   function getLocationLabel(location: string) {
     if (location === "marpla-lomas")
       return "MARPLA – LOMAS";
@@ -43,8 +43,14 @@ export default function SystemLayout({
     return location.toUpperCase();
   }
 
+  /* ---------- HEADER LOCATION ---------- */
+  const headerLocation =
+    user?.role === "ADMIN"
+      ? selectedLocation
+      : user?.location ?? "marpla-lomas";
+
   const brandName =
-    getLocationLabel(effectiveLocation);
+    getLocationLabel(headerLocation);
 
   /* ---------- PEDIDOS ACTIVOS ---------- */
   const activeOrders = orders.filter(
@@ -87,7 +93,6 @@ export default function SystemLayout({
       {/* ---------- HEADER ---------- */}
       <header className="p-4 border-b border-zinc-800 flex justify-between items-center">
 
-        {/* Selector SOLO ADMIN */}
         {user?.role === "ADMIN" ? (
           <select
             value={selectedLocation}
