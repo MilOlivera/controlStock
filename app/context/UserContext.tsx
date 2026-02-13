@@ -45,7 +45,7 @@ const userLocations: Record<
     location: null,
   },
 
-  "lomas@marpla.com": {
+  "local@marpla.com": {
     role: "LOCAL",
     location: "marpla-lomas",
   },
@@ -55,6 +55,8 @@ const userLocations: Record<
     location: "evolvere",
   },
 };
+console.log("LOGIN EMAIL:", firebaseUser?.email);
+
 
 
 /* ---------- PROVIDER ---------- */
