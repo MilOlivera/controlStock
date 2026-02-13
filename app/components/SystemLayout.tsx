@@ -35,10 +35,16 @@ export default function SystemLayout({
       : user?.location ?? "marpla-lomas";
 
   /* ---------- NOMBRE LOCAL ---------- */
+  function getLocationLabel(location: string) {
+    if (location === "marpla-lomas")
+      return "MARPLA – LOMAS";
+    if (location === "evolvere")
+      return "EVOLVERE";
+    return location.toUpperCase();
+  }
+
   const brandName =
-    effectiveLocation === "marpla-lomas"
-      ? "MARPLA"
-      : "EVOLVERE";
+    getLocationLabel(effectiveLocation);
 
   /* ---------- PEDIDOS ACTIVOS ---------- */
   const activeOrders = orders.filter(
@@ -80,7 +86,8 @@ export default function SystemLayout({
     <div className="min-h-screen flex flex-col bg-black text-white">
       {/* ---------- HEADER ---------- */}
       <header className="p-4 border-b border-zinc-800 flex justify-between items-center">
-        {/* ADMIN puede cambiar local */}
+
+        {/* Selector SOLO ADMIN */}
         {user?.role === "ADMIN" ? (
           <select
             value={selectedLocation}
