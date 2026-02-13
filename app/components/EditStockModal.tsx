@@ -12,30 +12,39 @@ export function EditStockModal({
   onClose: () => void;
 }) {
   const [value, setValue] = useState("");
+
   const { updateStock } = useInventory();
   const { addMovement } = useMovements();
-
 
   if (!product) return null;
 
   function handleSave() {
-  const newStock = Number(value);
-  if (newStock < 0) return;
+    const newStock = Number(value);
+    if (newStock < 0) return;
 
-  const diff = newStock - product.stock;
+    const location = product.location; // importante
+    const currentStock = product.stock ?? 0;
 
-  if (diff !== 0) {
-    addMovement(
+    const diff = newStock - currentStock;
+
+    if (diff !== 0) {
+      addMovement(
+        product.name,
+        location,
+        "ajuste",
+        diff,
+        0
+      );
+    }
+
+    updateStock(
       product.name,
-      "ajuste",
-      diff
+      location,
+      newStock
     );
+
+    onClose();
   }
-
-  updateStock(product.name, newStock);
-  onClose();
-}
-
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
