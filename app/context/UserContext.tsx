@@ -55,7 +55,6 @@ const userLocations: Record<
     location: "evolvere",
   },
 };
-console.log("LOGIN EMAIL:", firebaseUser?.email);
 
 
 
@@ -76,6 +75,7 @@ export function UserProvider({
     const unsub = onAuthStateChanged(
       auth,
       (user) => {
+        console.log("LOGIN EMAIL:", firebaseUser?.email);
         setFirebaseUser(user);
         setLoading(false);
       }
@@ -100,12 +100,9 @@ export function UserProvider({
         location: mapping.location,
       };
     } else {
-      // fallback admin
-      user = {
-        email: firebaseUser.email,
-        role: "ADMIN",
-        location: null,
-      };
+  console.warn("Usuario sin mapping:", email);
+  user = null;
+
     }
   }
 
