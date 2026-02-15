@@ -2,17 +2,14 @@
 
 import { useState } from "react";
 import { auth } from "../lib/firebase";
-import {
-  signInWithEmailAndPassword,
-} from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] =
-    useState("");
+  const [password, setPassword] = useState("");
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
     setError(null);
@@ -23,14 +20,28 @@ export default function LoginScreen() {
     }
 
     try {
+      setLoading(true);
+
       await signInWithEmailAndPassword(
         auth,
-        email,
+        email.trim(),
         password
       );
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error login", e);
-      setError("Credenciales incorrectas");
+
+      // Mensajes más claros
+      if (e.code === "auth/user-not-found") {
+        setError("Usuario no encontrado");
+      } else if (e.code === "auth/wrong-password") {
+        setError("Contraseña incorrecta");
+      } else if (e.code === "auth/invalid-email") {
+        setError("Email inválido");
+      } else {
+        setError("No se pudo iniciar sesión");
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -48,7 +59,7 @@ export default function LoginScreen() {
           onChange={(e) =>
             setEmail(e.target.value)
           }
-          className="w-full bg-zinc-800 p-2 rounded"
+          className="w-full bg-zinc-800 p-2 rounded outline-none focus:ring-2 focus:ring-green-600"
         />
 
         <input
@@ -58,7 +69,7 @@ export default function LoginScreen() {
           onChange={(e) =>
             setPassword(e.target.value)
           }
-          className="w-full bg-zinc-800 p-2 rounded"
+          className="w-full bg-zinc-800 p-2 rounded outline-none focus:ring-2 focus:ring-green-600"
         />
 
         {error && (
@@ -69,9 +80,15 @@ export default function LoginScreen() {
 
         <button
           onClick={handleLogin}
-          className="px-4 py-2 bg-green-600 rounded w-full"
+          disabled={loading}
+          className={`px-4 py-2 rounded w-full transition
+            ${
+              loading
+                ? "bg-zinc-700 cursor-not-allowed"
+                : "bg-green-600 hover:bg-green-500 cursor-pointer"
+            }`}
         >
-          Ingresar
+          {loading ? "Ingresando..." : "Ingresar"}
         </button>
       </div>
     </div>

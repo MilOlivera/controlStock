@@ -40,7 +40,7 @@ const userLocations: Record<
   string,
   { role: Role; location: string | null }
 > = {
-  "admin@admin": {
+  "admin@admin.com": {
     role: "ADMIN",
     location: null,
   },
