@@ -99,10 +99,11 @@ export default function GlobalRequestForm({
       {products
   .filter(
     (p) =>
-      !p.locations ||
+      Array.isArray(p.locations) &&
       p.locations.includes(location)
   )
   .map((p) => (
+
 
         <div
           key={p.name}
