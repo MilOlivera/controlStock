@@ -15,17 +15,20 @@ export default function DeliverModal({
   const [qty, setQty] = useState("");
 
   const { deliverOrder } = useOrders();
-  const { updateStock, products, getStock } =
-    useInventory();
+  const { products } = useInventory();
   const { addMovement } = useMovements();
 
   if (!order) return null;
 
+  // ✅ producto filtrado por local
   const product = products.find(
-    (p) => p.name === order.product
+    (p) =>
+      p.name === order.product &&
+      (!p.locations ||
+        p.locations.includes(order.location))
   );
 
-  function handleDeliver() {
+  async function handleDeliver() {
     const delivered = Number(qty);
     if (!delivered || delivered <= 0) return;
 
@@ -39,32 +42,14 @@ export default function DeliverModal({
       return;
     }
 
-    // marcar entrega del pedido
-    deliverOrder(order.id, delivered);
+    // ✅ solo marcamos entrega
+    await deliverOrder(order.id, delivered);
 
+    // ✅ registrar movimiento
     if (product) {
-      const location = order.location;
-
-      // stock actual del local
-      const currentStock = getStock(
-        product.name,
-        location
-      );
-
-      const newStock =
-        currentStock + delivered;
-
-      // actualizar stock del producto
-      updateStock(
-        product.name,
-        location,
-        newStock
-      );
-
-      // registrar movimiento de ingreso
       addMovement(
         product.name,
-        location,
+        order.location,
         "ingreso",
         delivered,
         0
