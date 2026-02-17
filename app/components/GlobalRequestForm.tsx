@@ -96,7 +96,14 @@ export default function GlobalRequestForm({
         Solicitud masiva
       </h2>
 
-      {products.map((p) => (
+      {products
+  .filter(
+    (p) =>
+      !p.locations ||
+      p.locations.includes(location)
+  )
+  .map((p) => (
+
         <div
           key={p.name}
           className="bg-zinc-900 p-3 rounded flex justify-between"

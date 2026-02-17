@@ -84,12 +84,16 @@ export default function SystemLayout({
 
   /* ---------- PEDIDOS ACTIVOS ---------- */
   const activeOrders = orders.filter((o) => {
-    if (o.status === "cumplido") return false;
+  if (o.status === "cumplido") return false;
 
-    if (user?.role === "ADMIN") return true;
-
+  // ADMIN ve solo pedidos del local seleccionado
+  if (user?.role === "ADMIN") {
     return o.location === effectiveLocation;
-  });
+  }
+
+  return o.location === effectiveLocation;
+});
+
 
   const pendingOrdersCount = activeOrders.filter(
   (o) => o.location === effectiveLocation
