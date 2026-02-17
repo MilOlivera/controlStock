@@ -67,10 +67,7 @@ export function OrdersProvider({
   children: React.ReactNode;
 }) {
   const [orders, setOrders] = useState<Order[]>([]);
-
-  // mantenemos inventory por si luego se usa,
-  // pero ya NO tocamos stock acá
-  useInventory();
+  const { getStock, updateStock } = useInventory();
 
 /* ---------- CARGA DESDE FIRESTORE ---------- */
 
@@ -167,8 +164,6 @@ async function removeOrdersByProduct(
 }
 
 /* ---------- ENTREGAS ---------- */
-/* SOLO ACTUALIZA PEDIDO */
-/* NO TOCA STOCK */
 
 async function deliverOrder(
   id: number,
