@@ -1,11 +1,23 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useInventory } from "./InventoryContext";
+
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  updateDoc,
+  doc,
+  deleteDoc,
+} from "firebase/firestore";
+
+import { db } from "../lib/firebase";
 
 /* ---------- TIPOS ---------- */
 
 export type Order = {
+  firestoreId?: string;
   id: number;
   location: string;
   product: string;
@@ -23,23 +35,23 @@ type OrdersContextType = {
     product: string,
     category: string,
     quantity: number
-  ) => boolean;
+  ) => Promise<boolean>;
 
   replaceOrderQuantity: (
     product: string,
     location: string,
     quantity: number
-  ) => void;
+  ) => Promise<void>;
 
   removeOrdersByProduct: (
     product: string,
     location: string
-  ) => void;
+  ) => Promise<void>;
 
   deliverOrder: (
     id: number,
     deliveredQty: number
-  ) => void;
+  ) => Promise<void>;
 };
 
 /* ---------- CONTEXTO ---------- */
@@ -55,17 +67,34 @@ export function OrdersProvider({
   children: React.ReactNode;
 }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const { getStock, updateStock } =
-    useInventory();
+  const { getStock, updateStock } = useInventory();
+
+/* ---------- CARGA DESDE FIRESTORE ---------- */
+
+useEffect(() => {
+  const unsub = onSnapshot(
+    collection(db, "orders"),
+    (snapshot) => {
+      const list: Order[] = snapshot.docs.map((d) => ({
+        ...(d.data() as Order),
+        firestoreId: d.id,
+      }));
+
+      setOrders(list);
+    }
+  );
+
+  return () => unsub();
+}, []);
 
 /* ---------- CREAR PEDIDO ---------- */
 
-function addOrder(
+async function addOrder(
   location: string,
   product: string,
   category: string,
   quantity: number
-): boolean {
+): Promise<boolean> {
   if (!quantity || quantity <= 0) return false;
 
   const existingOpenOrder = orders.find(
@@ -75,121 +104,109 @@ function addOrder(
       o.status !== "cumplido"
   );
 
-  if (existingOpenOrder) {
-    console.log(
-      "Ya existe un pedido abierto para este producto"
-    );
-    return false;
-  }
+  if (existingOpenOrder) return false;
 
-  setOrders((prev) => [
-    ...prev,
-    {
-      id: Date.now() + Math.random(),
-      location,
-      product,
-      category,
-      quantity,
-      delivered: 0,
-      status: "pendiente",
-    },
-  ]);
+  await addDoc(collection(db, "orders"), {
+    id: Date.now() + Math.random(),
+    location,
+    product,
+    category,
+    quantity,
+    delivered: 0,
+    status: "pendiente",
+  });
 
   return true;
 }
 
 /* ---------- REEMPLAZAR PEDIDO ---------- */
 
-function replaceOrderQuantity(
+async function replaceOrderQuantity(
   product: string,
   location: string,
   quantity: number
 ) {
-  setOrders((prev) =>
-    prev.map((o) => {
-      if (
-        o.product === product &&
-        o.location === location &&
-        o.status !== "cumplido"
-      ) {
-        return {
-          ...o,
-          quantity,
-          delivered: 0,
-          status: "pendiente",
-        };
-      }
+  const order = orders.find(
+    (o) =>
+      o.product === product &&
+      o.location === location &&
+      o.status !== "cumplido"
+  );
 
-      return o;
-    })
+  if (!order?.firestoreId) return;
+
+  await updateDoc(
+    doc(db, "orders", order.firestoreId),
+    {
+      quantity,
+      delivered: 0,
+      status: "pendiente",
+    }
   );
 }
 
 /* ---------- BORRAR PEDIDOS ---------- */
 
-function removeOrdersByProduct(
+async function removeOrdersByProduct(
   product: string,
   location: string
 ) {
-  setOrders((prev) =>
-    prev.filter(
-      (o) =>
-        !(
-          o.product === product &&
-          o.location === location
-        )
-    )
+  const toDelete = orders.filter(
+    (o) =>
+      o.product === product &&
+      o.location === location
   );
+
+  for (const o of toDelete) {
+    if (!o.firestoreId) continue;
+    await deleteDoc(doc(db, "orders", o.firestoreId));
+  }
 }
 
 /* ---------- ENTREGAS ---------- */
 
-function deliverOrder(
+async function deliverOrder(
   id: number,
   deliveredQty: number
 ) {
-  setOrders((prev) =>
-    prev.map((o) => {
-      if (o.id !== id) return o;
+  const order = orders.find((o) => o.id === id);
+  if (!order?.firestoreId) return;
 
-      /* ---------- DESCONTAR STOCK ---------- */
-      const currentStock = getStock(
-        o.product,
-        o.location
-      );
+  /* descontar stock */
+  const currentStock = getStock(
+    order.product,
+    order.location
+  );
 
-      const newStock = Math.max(
-        0,
-        currentStock - deliveredQty
-      );
+  const newStock = Math.max(
+    0,
+    currentStock - deliveredQty
+  );
 
-      updateStock(
-        o.product,
-        o.location,
-        newStock
-      );
+  await updateStock(
+    order.product,
+    order.location,
+    newStock
+  );
 
-      /* ---------- ACTUALIZAR PEDIDO ---------- */
-      const newDelivered =
-        o.delivered + deliveredQty;
+  const newDelivered =
+    order.delivered + deliveredQty;
 
-      const remaining =
-        o.quantity - newDelivered;
+  const remaining =
+    order.quantity - newDelivered;
 
-      if (remaining <= 0) {
-        return {
-          ...o,
-          delivered: o.quantity,
-          status: "cumplido",
-        };
-      }
-
-      return {
-        ...o,
-        delivered: newDelivered,
-        status: "parcial",
-      };
-    })
+  await updateDoc(
+    doc(db, "orders", order.firestoreId),
+    {
+      delivered:
+        remaining <= 0
+          ? order.quantity
+          : newDelivered,
+      status:
+        remaining <= 0
+          ? "cumplido"
+          : "parcial",
+    }
   );
 }
 
