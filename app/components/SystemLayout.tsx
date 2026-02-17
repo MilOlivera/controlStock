@@ -278,9 +278,12 @@ export default function SystemLayout({
               />
             )}
 
-            {tab === "pedidos" && (
-              <AdminOrdersList />
-            )}
+           {tab === "pedidos" && (
+  <AdminOrdersList
+    location={effectiveLocation}
+  />
+)}
+
 
             {tab === "compras" && (
               <AdminPurchases
