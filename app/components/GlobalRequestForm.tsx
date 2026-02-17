@@ -24,40 +24,41 @@ export default function GlobalRequestForm({
   ) {
     setQuantities((prev) => ({
       ...prev,
-      [product]: Math.max(0, qty), // evita negativos
+      [product]: Math.max(0, qty),
     }));
   }
 
-  function handleSubmit() {
+  /* ---------- ENVIAR PEDIDOS ---------- */
+  async function handleSubmit() {
     const locationFinal = location;
 
     const created: string[] = [];
     const skipped: string[] = [];
 
-    Object.entries(quantities).forEach(
-      ([product, qty]) => {
-        if (!qty || qty <= 0) return;
+    for (const [product, qty] of Object.entries(
+      quantities
+    )) {
+      if (!qty || qty <= 0) continue;
 
-        const p = products.find(
-          (p) => p.name === product
-        );
+      const p = products.find(
+        (p) => p.name === product
+      );
 
-        if (!p) return;
+      if (!p) continue;
 
-        const success = addOrder(
-          locationFinal,
-          p.name,
-          p.category,
-          qty
-        );
+      const success = await addOrder(
+        locationFinal,
+        p.name,
+        p.category,
+        qty
+      );
 
-        if (success) {
-          created.push(product);
-        } else {
-          skipped.push(product);
-        }
+      if (success) {
+        created.push(product);
+      } else {
+        skipped.push(product);
       }
-    );
+    }
 
     setQuantities({});
 
