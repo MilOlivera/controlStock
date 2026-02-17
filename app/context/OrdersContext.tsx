@@ -67,7 +67,10 @@ export function OrdersProvider({
   children: React.ReactNode;
 }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const { getStock, updateStock } = useInventory();
+
+  // mantenemos inventory por si luego se usa,
+  // pero ya NO tocamos stock acá
+  useInventory();
 
 /* ---------- CARGA DESDE FIRESTORE ---------- */
 
@@ -164,6 +167,8 @@ async function removeOrdersByProduct(
 }
 
 /* ---------- ENTREGAS ---------- */
+/* SOLO ACTUALIZA PEDIDO */
+/* NO TOCA STOCK */
 
 async function deliverOrder(
   id: number,
@@ -171,23 +176,6 @@ async function deliverOrder(
 ) {
   const order = orders.find((o) => o.id === id);
   if (!order?.firestoreId) return;
-
-  /* descontar stock */
-  const currentStock = getStock(
-    order.product,
-    order.location
-  );
-
-  const newStock = Math.max(
-    0,
-    currentStock - deliveredQty
-  );
-
-  await updateStock(
-    order.product,
-    order.location,
-    newStock
-  );
 
   const newDelivered =
     order.delivered + deliveredQty;
