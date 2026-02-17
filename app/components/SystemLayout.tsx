@@ -91,8 +91,10 @@ export default function SystemLayout({
     return o.location === effectiveLocation;
   });
 
-  const pendingOrdersCount =
-    activeOrders.length;
+  const pendingOrdersCount = activeOrders.filter(
+  (o) => o.location === effectiveLocation
+).length;
+
 
   /* ---------- TABS ---------- */
   const localTabs = [
