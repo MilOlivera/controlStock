@@ -37,7 +37,10 @@ export type Product = {
   criticalStock: number;
   targetStock: number;
   variants: Variant[];
+  locations?: string[];
 };
+
+
 
 type InventoryContextType = {
   products: Product[];
@@ -66,7 +69,13 @@ type InventoryContextType = {
     qty: number
   ) => void;
 
-  addProduct: (product: Product) => Promise<void>;
+ addProduct: (
+  product: Product,
+  locations?: string[]
+) => Promise<void>;
+
+
+
 
   addVariant: (
     productId: string,
@@ -124,16 +133,22 @@ export function InventoryProvider({
       collection(db, "products"),
       (snapshot) => {
         const list: Product[] = snapshot.docs.map(
-          (docSnap) => {
-            const data =
-              docSnap.data() as Product;
+  (docSnap) => {
+    const data =
+      docSnap.data() as Product;
 
-            return {
-              ...data,
-              firestoreId: docSnap.id,
-            };
-          }
-        );
+    return {
+      ...data,
+      firestoreId: docSnap.id,
+
+      // MIGRACIÓN automática
+      locations:
+        data.locations ??
+        LOCATIONS,
+    };
+  }
+);
+
 
         setProducts(list);
       }
@@ -245,19 +260,32 @@ export function InventoryProvider({
 
   /* ---------- CRUD PRODUCT ---------- */
 
-  async function addProduct(product: Product) {
-    product.variants.forEach((v) => {
-      v.stock = {};
-      LOCATIONS.forEach(
-        (loc) => (v.stock[loc] = 0)
-      );
-    });
+  async function addProduct(
+  product: Product,
+  locations?: string[]
+) {
+  const finalLocations =
+    locations && locations.length
+      ? locations
+      : LOCATIONS;
 
-    await addDoc(
-      collection(db, "products"),
-      product
+  product.locations = finalLocations;
+
+  product.variants.forEach((v) => {
+    v.stock = {};
+    LOCATIONS.forEach(
+      (loc) => (v.stock[loc] = 0)
     );
-  }
+  });
+
+  await addDoc(
+    collection(db, "products"),
+    product
+  );
+}
+
+
+
 
   async function updateProduct(
     productId: string,

@@ -12,6 +12,9 @@ import AdminPurchases from "./AdminPurchases";
 import GlobalRequestForm from "./GlobalRequestForm";
 import AdminProducts from "./AdminProducts";
 
+import marplaLogo from "../assets/marplaLogo.jpeg";
+import evolvereLogo from "../assets/evolvereLogo.png";
+
 export default function SystemLayout({
   brand,
 }: {
@@ -24,7 +27,7 @@ export default function SystemLayout({
   const { orders } = useOrders();
   const { user } = useUser();
 
-  /* ---------- LOCAL SELECCIONADO (solo admin) ---------- */
+  /* ---------- LOCAL SELECCIONADO ---------- */
   const [selectedLocation, setSelectedLocation] =
     useState<string>("marpla-lomas");
 
@@ -43,13 +46,41 @@ export default function SystemLayout({
     return location.toUpperCase();
   }
 
-  /* ---------- NOMBRE EN HEADER ---------- */
-  const brandName =
+  const headerLocation =
     user?.role === "ADMIN"
-      ? getLocationLabel(selectedLocation)
-      : getLocationLabel(
-          user?.location || "marpla-lomas"
-        );
+      ? selectedLocation
+      : user?.location || "marpla-lomas";
+
+  const brandName =
+    getLocationLabel(headerLocation);
+
+  /* ---------- CONFIG VISUAL MARCA ---------- */
+  function getBrandConfig(location: string) {
+  if (location === "marpla-lomas") {
+    return {
+      color: "text-blue-400",
+      accent: "border-blue-500",
+      logo: marplaLogo,
+    };
+  }
+
+  if (location === "evolvere") {
+    return {
+      color: "text-emerald-400",
+      accent: "border-emerald-500",
+      logo: evolvereLogo,
+    };
+  }
+
+  return {
+    color: "text-white",
+    accent: "border-zinc-500",
+    logo: null,
+  };
+}
+
+  const brandConfig =
+    getBrandConfig(headerLocation);
 
   /* ---------- PEDIDOS ACTIVOS ---------- */
   const activeOrders = orders.filter((o) => {
@@ -59,6 +90,9 @@ export default function SystemLayout({
 
     return o.location === effectiveLocation;
   });
+
+  const pendingOrdersCount =
+    activeOrders.length;
 
   /* ---------- TABS ---------- */
   const localTabs = [
@@ -88,8 +122,9 @@ export default function SystemLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-black text-white">
+
       {/* ---------- HEADER ---------- */}
-      <header className="p-4 border-b border-zinc-800 flex justify-between items-center">
+      <header className="p-4 border-b border-zinc-800 flex justify-between items-center bg-black">
 
         {user?.role === "ADMIN" ? (
           <select
@@ -97,7 +132,18 @@ export default function SystemLayout({
             onChange={(e) =>
               setSelectedLocation(e.target.value)
             }
-            className="bg-zinc-800 px-3 py-1 rounded text-sm font-semibold"
+            className="
+              bg-zinc-800
+              px-4 py-2
+              rounded-lg
+              text-sm font-semibold
+              cursor-pointer
+              border border-zinc-700
+              hover:border-zinc-500
+              hover:bg-zinc-700
+              transition
+              shadow-sm
+            "
           >
             <option value="marpla-lomas">
               MARPLA – LOMAS
@@ -107,32 +153,63 @@ export default function SystemLayout({
             </option>
           </select>
         ) : (
-          <h1 className="text-lg font-bold">
-            {brandName}
-          </h1>
+          <div className="flex items-center gap-3">
+            {brandConfig.logo && (
+              <img
+                src={brandConfig.logo.src}
+                alt="logo"
+                className="h-8 w-8 object-contain"
+              />
+            )}
+
+            <h1
+              className={`text-lg font-bold ${brandConfig.color}`}
+            >
+              {brandName}
+            </h1>
+          </div>
         )}
 
         <UserMenu />
       </header>
 
       {/* ---------- TABS ---------- */}
-      <div className="flex border-b border-zinc-800">
-        {tabs.map((item) => (
-          <button
-            key={item}
-            onClick={() => setTab(item)}
-            className={`flex-1 p-3 text-sm capitalize ${
-              tab === item
-                ? "bg-zinc-800 font-semibold"
-                : "bg-black"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
+{/* ---------- TABS ---------- */}
+<div className="flex border-b border-zinc-800 bg-black">
+  {tabs.map((item) => (
+    <button
+      key={item}
+      onClick={() => setTab(item)}
+      className={`relative flex-1 p-3 text-sm capitalize cursor-pointer transition-colors border-b-2 ${
+        tab === item
+          ? `bg-zinc-800 font-semibold ${brandConfig.accent}`
+          : "bg-black hover:bg-zinc-900 border-transparent"
+      }`}
+    >
+      <div className="flex items-center justify-center gap-2">
+        {item}
 
-      <main className="flex-1 p-4">
+        {item === "pedidos" &&
+          pendingOrdersCount > 0 && (
+            <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
+              {pendingOrdersCount}
+            </span>
+          )}
+      </div>
+    </button>
+  ))}
+</div>
+
+
+      <main
+  key={tab}
+  className="
+    flex-1 p-4
+    animate-tabFade
+  "
+>
+
+
         {/* ---------- LOCAL ---------- */}
         {user?.role !== "ADMIN" && (
           <>
@@ -165,12 +242,15 @@ export default function SystemLayout({
                         <div className="font-semibold">
                           {o.product}
                         </div>
+
                         <div className="text-sm text-zinc-400">
                           Pedido: {o.quantity}
                         </div>
+
                         <div className="text-sm text-zinc-400">
                           Entregado: {o.delivered}
                         </div>
+
                         <div className="text-sm text-zinc-400">
                           Faltan: {remaining}
                         </div>
@@ -209,7 +289,9 @@ export default function SystemLayout({
             )}
 
             {tab === "productos" && (
-              <AdminProducts />
+              <AdminProducts
+                selectedLocation={effectiveLocation}
+              />
             )}
 
             {tab === "metricas" && (

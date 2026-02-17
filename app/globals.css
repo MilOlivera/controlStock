@@ -18,3 +18,46 @@ body {
   --primary: #16a34a;
   --background: #0b0f0c;
 }
+
+/* ---------- Animación tabs ---------- */
+@keyframes tabFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tabFade {
+  animation: tabFade 0.18s ease-out;
+}
+
+@keyframes expandFade {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 300px;
+    transform: translateY(0);
+  }
+}
+
+.animate-expandFade {
+  animation: expandFade 0.22s ease-out;
+  overflow: hidden;
+}
+
+@keyframes flashSave {
+  0% { background-color: #065f46; }
+  100% { background-color: transparent; }
+}
+
+.animate-flashSave {
+  animation: flashSave 0.6s ease-out;
+}

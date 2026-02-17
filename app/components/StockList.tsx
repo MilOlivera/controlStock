@@ -13,7 +13,6 @@ export default function StockList({
   const {
     products,
     getStock,
-    updateStock,
     updateVariantStock,
   } = useInventory();
 
@@ -25,32 +24,31 @@ export default function StockList({
   const [editing, setEditing] =
     useState(false);
 
-  const [editedStocks, setEditedStocks] =
-    useState<Record<string, number>>({});
-
-  // clave: productId|variantId
   const [editedVariantStocks, setEditedVariantStocks] =
     useState<Record<string, number>>({});
 
-  const [expandedProducts, setExpandedProducts] =
-    useState<Record<string, boolean>>({});
-
-  /* ---------- LOCAL ACTIVO ---------- */
+  const [expandedProduct, setExpandedProduct] =
+    useState<string | null>(null);
 
   if (!locationOverride) return null;
+  const loc = locationOverride;
 
-const loc = locationOverride;
+  /* ---------- PRODUCTOS VISIBLES ---------- */
 
-
-  /* ---------- ORDENAR ---------- */
-
-  const sortedProducts = [...products].sort(
-    (a, b) =>
-      getStock(a.name, loc) -
-      getStock(b.name, loc)
+  const visibleProducts = products.filter(
+    (p) =>
+      !p.locations ||
+      p.locations.includes(loc)
   );
 
-  /* ---------- EDITAR ---------- */
+  const sortedProducts = [...visibleProducts].sort(
+    (a, b) => {
+      const stockA = getStock(a.name, loc);
+      const stockB = getStock(b.name, loc);
+
+      return stockA - stockB;
+    }
+  );
 
   function makeVariantKey(
     productId: string,
@@ -60,22 +58,10 @@ const loc = locationOverride;
   }
 
   function startEditing() {
-    const initialTotals: Record<
-      string,
-      number
-    > = {};
-
-    const initialVariants: Record<
-      string,
-      number
-    > = {};
+    const initialVariants: Record<string, number> =
+      {};
 
     products.forEach((p) => {
-      initialTotals[p.name] = getStock(
-        p.name,
-        loc
-      );
-
       p.variants.forEach((v) => {
         const key = makeVariantKey(
           p.id,
@@ -87,14 +73,12 @@ const loc = locationOverride;
       });
     });
 
-    setEditedStocks(initialTotals);
     setEditedVariantStocks(initialVariants);
     setEditing(true);
   }
 
   function cancelEditing() {
     setEditing(false);
-    setEditedStocks({});
     setEditedVariantStocks({});
   }
 
@@ -128,15 +112,13 @@ const loc = locationOverride;
     });
 
     setEditing(false);
-    setEditedStocks({});
     setEditedVariantStocks({});
   }
 
   function toggleExpand(name: string) {
-    setExpandedProducts((prev) => ({
-      ...prev,
-      [name]: !prev[name],
-    }));
+    setExpandedProduct((prev) =>
+      prev === name ? null : name
+    );
   }
 
   /* ---------- UI ---------- */
@@ -147,7 +129,7 @@ const loc = locationOverride;
         {!editing ? (
           <button
             onClick={startEditing}
-            className="bg-zinc-700 px-3 py-1 rounded text-sm"
+            className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded text-sm transition"
           >
             Editar stock
           </button>
@@ -155,14 +137,14 @@ const loc = locationOverride;
           <>
             <button
               onClick={saveChanges}
-              className="bg-green-700 px-3 py-1 rounded text-sm"
+              className="bg-green-700 hover:bg-green-600 px-3 py-1 rounded text-sm transition"
             >
               Guardar cambios
             </button>
 
             <button
               onClick={cancelEditing}
-              className="bg-zinc-700 px-3 py-1 rounded text-sm"
+              className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded text-sm transition"
             >
               Cancelar
             </button>
@@ -177,67 +159,75 @@ const loc = locationOverride;
             loc
           );
 
-          const isCritical =
+          const noStock = totalStock === 0;
+          const critical =
+            totalStock > 0 &&
             totalStock <= p.criticalStock;
 
           const expanded =
-            expandedProducts[p.name];
+            expandedProduct === p.name;
 
           return (
             <div
               key={p.id}
-              className={`p-3 rounded-lg ${
-                isCritical
-                  ? "bg-red-900"
-                  : "bg-zinc-900"
-              }`}
+              onClick={() =>
+                toggleExpand(p.name)
+              }
+              className={`
+                p-3 rounded-lg border transition-all duration-200 cursor-pointer
+                ${
+                  noStock
+                    ? "bg-red-900/60 border-red-600 hover:border-red-400"
+                    : critical
+                    ? "bg-yellow-900/40 border-yellow-600 hover:border-yellow-400"
+                    : "bg-zinc-900 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/70 hover:shadow-lg hover:shadow-black/40 hover:scale-[1.01]"
+                }
+              `}
             >
               {/* FILA PRINCIPAL */}
               <div className="flex justify-between items-center">
                 <div>
                   <div className="font-semibold">
+                    {expanded ? "▼" : "▶"}{" "}
                     {p.name}
                   </div>
 
                   <div className="text-sm text-zinc-400">
-                    Stock total: {totalStock}
+                    Stock total:{" "}
+                    <span className="text-white font-semibold">
+                      {totalStock}
+                    </span>
                   </div>
 
-                  {isCritical && (
+                  {noStock && (
                     <div className="text-xs text-red-300">
-                      Stock crítico
+                      ⚠ Sin stock
+                    </div>
+                  )}
+
+                  {critical && (
+                    <div className="text-xs text-yellow-300">
+                      ⚠ Stock crítico
                     </div>
                   )}
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      toggleExpand(p.name)
-                    }
-                    className="bg-zinc-700 px-3 py-1 rounded text-sm"
-                  >
-                    {expanded
-                      ? "Ocultar"
-                      : "Marcas"}
-                  </button>
-
-                  {!editing && (
+                {!editing &&
+                  user?.role !== "ADMIN" && (
                     <button
-                      onClick={() =>
-                        setSelectedProduct(p)
-                      }
-                      className="bg-zinc-700 px-3 py-1 rounded flex items-center gap-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProduct(p);
+                      }}
+                      className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded text-sm transition"
                     >
-                      +
+                      + Pedido
                     </button>
                   )}
-                </div>
               </div>
 
-              {/* VARIANTES */}
               {expanded && (
-                <div className="mt-3 space-y-1 pl-3 border-l border-zinc-700">
+                <div className="mt-3 space-y-1 pl-3 border-l border-zinc-700 animate-expandFade">
                   {p.variants.map((v) => {
                     const key =
                       makeVariantKey(
@@ -248,14 +238,12 @@ const loc = locationOverride;
                     return (
                       <div
                         key={v.id}
-                        className="flex justify-between text-sm text-zinc-400"
+                        className="flex justify-between text-sm text-zinc-300"
                       >
-                        <span>
-                          {v.brand}
-                        </span>
+                        <span>{v.brand}</span>
 
                         {!editing ? (
-                          <span>
+                          <span className="font-semibold">
                             {v.stock?.[
                               loc
                             ] || 0}
@@ -263,22 +251,32 @@ const loc = locationOverride;
                         ) : (
                           <input
                             type="number"
+                            min={0}
                             value={
                               editedVariantStocks[
                                 key
                               ] ?? 0
                             }
-                            onChange={(e) =>
+                            onClick={(e) =>
+                              e.stopPropagation()
+                            }
+                            onChange={(e) => {
+                              const val =
+                                e.target.value;
+
+                              const num =
+                                Number(val);
+
+                              if (num < 0)
+                                return;
+
                               setEditedVariantStocks(
                                 (prev) => ({
                                   ...prev,
-                                  [key]: Number(
-                                    e.target
-                                      .value
-                                  ),
+                                  [key]: num,
                                 })
-                              )
-                            }
+                              );
+                            }}
                             className="bg-zinc-800 p-1 rounded w-20 text-right"
                           />
                         )}

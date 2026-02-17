@@ -25,6 +25,10 @@ export default function RequestModal({
   const [showConfirm, setShowConfirm] =
     useState(false);
 
+  const [success, setSuccess] =
+    useState(false);
+
+  /* ---------- SUGERENCIA ---------- */
   useEffect(() => {
     if (!product) return;
 
@@ -40,6 +44,7 @@ export default function RequestModal({
 
   if (!product) return null;
 
+  /* ---------- SUBMIT ---------- */
   function handleSubmit() {
     if (!user?.location) {
       alert("Usuario sin local asignado");
@@ -47,7 +52,11 @@ export default function RequestModal({
     }
 
     const qty = Number(quantity);
-    if (!qty || qty <= 0) return;
+
+    if (!qty || qty <= 0) {
+      alert("Ingresá una cantidad válida");
+      return;
+    }
 
     const existing = orders.find(
       (o) =>
@@ -74,15 +83,23 @@ export default function RequestModal({
       qty
     );
 
-    setQuantity("");
-    onClose();
+    setSuccess(true);
+
+    setTimeout(() => {
+      setQuantity("");
+      onClose();
+    }, 1200);
   }
 
   function confirmReplace() {
     if (!user?.location) return;
 
     const qty = Number(quantity);
-    if (!qty || qty <= 0) return;
+
+    if (!qty || qty <= 0) {
+      alert("Cantidad inválida");
+      return;
+    }
 
     replaceOrderQuantity(
       product.name,
@@ -90,11 +107,16 @@ export default function RequestModal({
       qty
     );
 
-    setQuantity("");
-    setShowConfirm(false);
-    onClose();
+    setSuccess(true);
+
+    setTimeout(() => {
+      setQuantity("");
+      setShowConfirm(false);
+      onClose();
+    }, 1200);
   }
 
+  /* ---------- UI ---------- */
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
       <div className="bg-zinc-900 p-4 rounded w-80 space-y-4">
@@ -104,18 +126,37 @@ export default function RequestModal({
 
         <input
           type="number"
+          min={1}
           value={quantity}
-          onChange={(e) =>
-            setQuantity(e.target.value)
-          }
+          onChange={(e) => {
+            const val = e.target.value;
+
+            if (val === "") {
+              setQuantity("");
+              return;
+            }
+
+            const num = Number(val);
+            if (num < 0) return;
+
+            setQuantity(val);
+          }}
           className="w-full bg-zinc-800 p-2 rounded"
           placeholder="Cantidad"
+          disabled={success}
         />
+
+        {success && (
+          <div className="text-green-400 text-sm text-center animate-expandFade">
+            Pedido enviado correctamente ✅
+          </div>
+        )}
 
         <div className="flex gap-2">
           <button
             onClick={handleSubmit}
-            className="flex-1 bg-green-700 p-2 rounded"
+            disabled={success}
+            className="flex-1 bg-green-700 p-2 rounded disabled:opacity-50"
           >
             Solicitar
           </button>
@@ -128,7 +169,7 @@ export default function RequestModal({
           </button>
         </div>
 
-        {showConfirm && (
+        {showConfirm && !success && (
           <div className="bg-yellow-900 p-3 rounded space-y-2">
             <div className="text-sm">
               Ya existe un pedido abierto.

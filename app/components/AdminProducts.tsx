@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useInventory } from "../context/InventoryContext";
 
-export default function AdminProducts() {
+export default function AdminProducts({
+  selectedLocation,
+}: {
+  selectedLocation: string;
+}) {
   const {
     products,
     addProduct,
@@ -24,12 +28,13 @@ export default function AdminProducts() {
   const [category, setCategory] =
     useState("");
   const [brand, setBrand] =
-    useState("Genérica");
+    useState("");
 
   const [criticalStock, setCriticalStock] =
-    useState(0);
+    useState<number | "">("");
+
   const [targetStock, setTargetStock] =
-    useState(0);
+    useState<number | "">("");
 
   const [newVariantBrand, setNewVariantBrand] =
     useState("");
@@ -37,8 +42,12 @@ export default function AdminProducts() {
   const [newVariantPrice, setNewVariantPrice] =
     useState(0);
 
+  const [createInBoth, setCreateInBoth] =
+    useState(false);
+
   function handleCreateProduct() {
     if (!name) return alert("Nombre requerido");
+    if (!brand) return alert("Marca requerida");
 
     const productId = name
       .toLowerCase()
@@ -49,24 +58,39 @@ export default function AdminProducts() {
       "-" +
       brand.toLowerCase().replace(/\s/g, "-");
 
-    addProduct({
-      id: productId,
-      name,
-      category,
-      criticalStock,
-      targetStock,
-      variants: [
-        {
-          id: variantId,
-          brand,
-          defaultPrice: 0,
-          stock: {},
-        },
-      ],
-    });
+    const locations = createInBoth
+      ? ["marpla-lomas", "evolvere"]
+      : [selectedLocation];
 
+    addProduct(
+      {
+        id: productId,
+        name,
+        category,
+        criticalStock:
+          Number(criticalStock) || 0,
+        targetStock:
+          Number(targetStock) || 0,
+        variants: [
+          {
+            id: variantId,
+            brand,
+            defaultPrice: 0,
+            stock: {},
+          },
+        ],
+      },
+      locations
+    );
+
+    /* reset formulario */
     setShowForm(false);
     setName("");
+    setCategory("");
+    setBrand("");
+    setCriticalStock("");
+    setTargetStock("");
+    setCreateInBoth(false);
   }
 
   function handleAddVariant(productId: string) {
@@ -90,13 +114,13 @@ export default function AdminProducts() {
 
       <button
         onClick={() => setShowForm(!showForm)}
-        className="bg-zinc-800 px-3 py-2 rounded"
+        className="bg-zinc-800 px-3 py-2 rounded cursor-pointer hover:bg-zinc-700 transition"
       >
         ➕ Nuevo producto
       </button>
 
       {showForm && (
-        <div className="bg-zinc-900 p-4 rounded space-y-2">
+        <div className="bg-zinc-900 p-4 rounded space-y-3 border border-zinc-800">
           <input
             placeholder="Nombre"
             value={name}
@@ -116,7 +140,7 @@ export default function AdminProducts() {
           />
 
           <input
-            placeholder="Marca inicial"
+            placeholder="Marca"
             value={brand}
             onChange={(e) =>
               setBrand(e.target.value)
@@ -124,9 +148,60 @@ export default function AdminProducts() {
             className="w-full bg-zinc-800 p-2 rounded"
           />
 
+          {/* stock crítico */}
+          <input
+            type="number"
+            min={0}
+            placeholder="Stock crítico"
+            value={criticalStock}
+            onChange={(e) =>
+              setCriticalStock(
+                e.target.value === ""
+                  ? ""
+                  : Math.max(
+                      0,
+                      Number(e.target.value)
+                    )
+              )
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          {/* stock objetivo */}
+          <input
+            type="number"
+            min={0}
+            placeholder="Stock objetivo"
+            value={targetStock}
+            onChange={(e) =>
+              setTargetStock(
+                e.target.value === ""
+                  ? ""
+                  : Math.max(
+                      0,
+                      Number(e.target.value)
+                    )
+              )
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={createInBoth}
+              onChange={(e) =>
+                setCreateInBoth(
+                  e.target.checked
+                )
+              }
+            />
+            Crear también en el otro local
+          </label>
+
           <button
             onClick={handleCreateProduct}
-            className="bg-green-700 px-3 py-2 rounded w-full"
+            className="bg-green-700 px-3 py-2 rounded w-full cursor-pointer hover:bg-green-600 transition"
           >
             Crear producto
           </button>
@@ -136,7 +211,7 @@ export default function AdminProducts() {
       {products.map((p) => (
         <div
           key={p.firestoreId}
-          className="bg-zinc-900 p-3 rounded space-y-2"
+          className="bg-zinc-900 p-3 rounded space-y-2 border border-zinc-800"
         >
           <div
             className="flex justify-between cursor-pointer"
@@ -151,6 +226,7 @@ export default function AdminProducts() {
             <span className="font-semibold">
               {p.name}
             </span>
+
             <span className="text-zinc-400">
               {p.category}
             </span>
@@ -181,7 +257,7 @@ export default function AdminProducts() {
                           { brand: newBrand }
                         );
                       }}
-                      className="bg-zinc-700 px-2 rounded"
+                      className="bg-zinc-700 px-2 rounded cursor-pointer"
                     >
                       Editar
                     </button>
@@ -193,7 +269,7 @@ export default function AdminProducts() {
                           v.id
                         )
                       }
-                      className="bg-red-700 px-2 rounded"
+                      className="bg-red-700 px-2 rounded cursor-pointer"
                     >
                       Eliminar
                     </button>
@@ -217,7 +293,7 @@ export default function AdminProducts() {
                   onClick={() =>
                     handleAddVariant(p.id)
                   }
-                  className="bg-green-700 px-3 rounded"
+                  className="bg-green-700 px-3 rounded cursor-pointer"
                 >
                   Agregar
                 </button>
@@ -227,7 +303,7 @@ export default function AdminProducts() {
                 onClick={() =>
                   deleteProduct(p.id)
                 }
-                className="bg-red-800 w-full py-2 rounded"
+                className="bg-red-800 w-full py-2 rounded cursor-pointer"
               >
                 Eliminar producto
               </button>
