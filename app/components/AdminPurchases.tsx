@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useInventory } from "../context/InventoryContext";
 import { useOrders } from "../context/OrdersContext";
 import { useMovements } from "../context/MovementsContext";
@@ -11,8 +11,11 @@ export default function AdminPurchases({
 }: {
   location: string;
 }) {
-  const { products, updateVariantStock } =
-    useInventory();
+
+  const {
+    getProductsByLocation,
+    updateVariantStock,
+  } = useInventory();
 
   const { orders, deliverOrder } =
     useOrders();
@@ -20,7 +23,13 @@ export default function AdminPurchases({
   const { addMovement } =
     useMovements();
 
+  const visibleProducts =
+    getProductsByLocation(location);
+
   const [selectedProduct, setSelectedProduct] =
+    useState<string>("");
+
+  const [selectedBrand, setSelectedBrand] =
     useState<string>("");
 
   const [selectedVariant, setSelectedVariant] =
@@ -34,6 +43,37 @@ export default function AdminPurchases({
 
   const [success, setSuccess] =
     useState(false);
+
+  /* ---------- PRODUCTO ACTUAL ---------- */
+
+  const selectedProductData =
+    visibleProducts.find(
+      (p) => p.name === selectedProduct
+    );
+
+  /* ---------- MARCAS ÚNICAS ---------- */
+
+  const brands = useMemo(() => {
+    if (!selectedProductData) return [];
+
+    return [
+      ...new Set(
+        selectedProductData.variants.map(
+          (v) => v.brand
+        )
+      ),
+    ];
+  }, [selectedProductData]);
+
+  /* ---------- VARIANTES FILTRADAS ---------- */
+
+  const filteredVariants = useMemo(() => {
+    if (!selectedProductData) return [];
+
+    return selectedProductData.variants.filter(
+      (v) => v.brand === selectedBrand
+    );
+  }, [selectedProductData, selectedBrand]);
 
   /* ---------- ENTREGA AUTO ---------- */
 
@@ -77,7 +117,7 @@ export default function AdminPurchases({
     )
       return;
 
-    const product = products.find(
+    const product = visibleProducts.find(
       (p) => p.name === selectedProduct
     );
 
@@ -85,8 +125,7 @@ export default function AdminPurchases({
 
     const variant =
       product.variants.find(
-        (v: any) =>
-          v.brand === selectedVariant
+        (v) => v.id === selectedVariant
       );
 
     if (!variant) return;
@@ -117,7 +156,7 @@ export default function AdminPurchases({
 
     setQuantity(0);
     setUnitPrice(0);
-    setSelectedProduct("");
+    setSelectedBrand("");
     setSelectedVariant("");
 
     setSuccess(true);
@@ -134,11 +173,6 @@ export default function AdminPurchases({
 
   /* ---------- UI ---------- */
 
-  const selectedProductData =
-    products.find(
-      (p) => p.name === selectedProduct
-    );
-
   return (
     <div className="space-y-8">
 
@@ -151,12 +185,15 @@ export default function AdminPurchases({
 
         <div className="flex gap-3 items-center">
 
+          {/* PRODUCTO */}
+
           <select
             value={selectedProduct}
             onChange={(e) => {
               setSelectedProduct(
                 e.target.value
               );
+              setSelectedBrand("");
               setSelectedVariant("");
             }}
             className="bg-zinc-800 p-2 rounded flex-1"
@@ -165,15 +202,44 @@ export default function AdminPurchases({
               Seleccionar producto
             </option>
 
-            {products.map((p) => (
+            {visibleProducts.map((p) => (
               <option
-                key={p.name}
+                key={p.id}
                 value={p.name}
               >
                 {p.name}
               </option>
             ))}
           </select>
+
+          {/* MARCA */}
+
+          <select
+            value={selectedBrand}
+            onChange={(e) => {
+              setSelectedBrand(
+                e.target.value
+              );
+              setSelectedVariant("");
+            }}
+            className="bg-zinc-800 p-2 rounded flex-1"
+            disabled={!selectedProductData}
+          >
+            <option value="">
+              Seleccionar marca
+            </option>
+
+            {brands.map((brand) => (
+              <option
+                key={brand}
+                value={brand}
+              >
+                {brand}
+              </option>
+            ))}
+          </select>
+
+          {/* PRESENTACIÓN */}
 
           <select
             value={selectedVariant}
@@ -183,23 +249,23 @@ export default function AdminPurchases({
               )
             }
             className="bg-zinc-800 p-2 rounded flex-1"
-            disabled={!selectedProductData}
+            disabled={!selectedBrand}
           >
             <option value="">
-              Seleccionar marca
+              Seleccionar presentación
             </option>
 
-            {selectedProductData?.variants.map(
-              (v: any) => (
-                <option
-                  key={v.brand}
-                  value={v.brand}
-                >
-                  {v.brand}
-                </option>
-              )
-            )}
+            {filteredVariants.map((v) => (
+              <option
+                key={v.id}
+                value={v.id}
+              >
+                {v.presentation} • {v.volume}
+              </option>
+            ))}
           </select>
+
+          {/* CANTIDAD */}
 
           <input
             type="number"
@@ -216,6 +282,8 @@ export default function AdminPurchases({
             }
             className="bg-zinc-800 p-2 rounded w-28 text-right"
           />
+
+          {/* PRECIO */}
 
           <input
             type="number"
@@ -242,13 +310,13 @@ export default function AdminPurchases({
         </button>
 
         {success && (
-          <div className="text-green-400 text-center text-sm">
+          <div className="bg-green-800 text-green-100 px-4 py-2 rounded text-center">
             Reparto aplicado correctamente
           </div>
         )}
       </div>
 
-      {/* INFO DE PEDIDOS */}
+      {/* INFO PEDIDOS */}
 
       {selectedProduct && relatedOrders.length > 0 && (
         <div className="bg-zinc-900 p-4 rounded border border-zinc-800">

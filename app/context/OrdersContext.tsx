@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { useInventory } from "./InventoryContext";
 
 import {
   collection,
@@ -22,6 +21,9 @@ export type Order = {
   location: string;
   product: string;
   category: string;
+
+  variantId?: string; // NUEVO
+
   quantity: number;
   delivered: number;
   status: "pendiente" | "parcial" | "cumplido";
@@ -34,7 +36,8 @@ type OrdersContextType = {
     location: string,
     product: string,
     category: string,
-    quantity: number
+    quantity: number,
+    variantId?: string
   ) => Promise<boolean>;
 
   replaceOrderQuantity: (
@@ -67,131 +70,133 @@ export function OrdersProvider({
   children: React.ReactNode;
 }) {
   const [orders, setOrders] = useState<Order[]>([]);
-  const { getStock, updateStock } = useInventory();
 
-/* ---------- CARGA DESDE FIRESTORE ---------- */
+  /* ---------- CARGA DESDE FIRESTORE ---------- */
 
-useEffect(() => {
-  const unsub = onSnapshot(
-    collection(db, "orders"),
-    (snapshot) => {
-      const list: Order[] = snapshot.docs.map((d) => ({
-        ...(d.data() as Order),
-        firestoreId: d.id,
-      }));
+  useEffect(() => {
+    const unsub = onSnapshot(
+      collection(db, "orders"),
+      (snapshot) => {
+        const list: Order[] = snapshot.docs.map((d) => ({
+          ...(d.data() as Order),
+          firestoreId: d.id,
+        }));
 
-      setOrders(list);
-    }
-  );
+        setOrders(list);
+      }
+    );
 
-  return () => unsub();
-}, []);
+    return () => unsub();
+  }, []);
 
-/* ---------- CREAR PEDIDO ---------- */
+  /* ---------- CREAR PEDIDO ---------- */
 
-async function addOrder(
-  location: string,
-  product: string,
-  category: string,
-  quantity: number
-): Promise<boolean> {
-  if (!quantity || quantity <= 0) return false;
+  async function addOrder(
+    location: string,
+    product: string,
+    category: string,
+    quantity: number,
+    variantId?: string
+  ): Promise<boolean> {
+    if (!quantity || quantity <= 0) return false;
 
-  const existingOpenOrder = orders.find(
-    (o) =>
-      o.product === product &&
-      o.location === location &&
-      o.status !== "cumplido"
-  );
+    const existingOpenOrder = orders.find(
+      (o) =>
+        o.product === product &&
+        o.location === location &&
+        o.status !== "cumplido"
+    );
 
-  if (existingOpenOrder) return false;
+    if (existingOpenOrder) return false;
 
-  await addDoc(collection(db, "orders"), {
-    id: Date.now() + Math.random(),
-    location,
-    product,
-    category,
-    quantity,
-    delivered: 0,
-    status: "pendiente",
-  });
-
-  return true;
-}
-
-/* ---------- REEMPLAZAR PEDIDO ---------- */
-
-async function replaceOrderQuantity(
-  product: string,
-  location: string,
-  quantity: number
-) {
-  const order = orders.find(
-    (o) =>
-      o.product === product &&
-      o.location === location &&
-      o.status !== "cumplido"
-  );
-
-  if (!order?.firestoreId) return;
-
-  await updateDoc(
-    doc(db, "orders", order.firestoreId),
-    {
+    await addDoc(collection(db, "orders"), {
+      id: Date.now() + Math.random(),
+      location,
+      product,
+      category,
+      variantId: variantId ?? null, // NUEVO
       quantity,
       delivered: 0,
       status: "pendiente",
-    }
-  );
-}
+    });
 
-/* ---------- BORRAR PEDIDOS ---------- */
-
-async function removeOrdersByProduct(
-  product: string,
-  location: string
-) {
-  const toDelete = orders.filter(
-    (o) =>
-      o.product === product &&
-      o.location === location
-  );
-
-  for (const o of toDelete) {
-    if (!o.firestoreId) continue;
-    await deleteDoc(doc(db, "orders", o.firestoreId));
+    return true;
   }
-}
 
-/* ---------- ENTREGAS ---------- */
+  /* ---------- REEMPLAZAR PEDIDO ---------- */
 
-async function deliverOrder(
-  id: number,
-  deliveredQty: number
-) {
-  const order = orders.find((o) => o.id === id);
-  if (!order?.firestoreId) return;
+  async function replaceOrderQuantity(
+    product: string,
+    location: string,
+    quantity: number
+  ) {
+    const order = orders.find(
+      (o) =>
+        o.product === product &&
+        o.location === location &&
+        o.status !== "cumplido"
+    );
 
-  const newDelivered =
-    order.delivered + deliveredQty;
+    if (!order?.firestoreId) return;
 
-  const remaining =
-    order.quantity - newDelivered;
+    await updateDoc(
+      doc(db, "orders", order.firestoreId),
+      {
+        quantity,
+        delivered: 0,
+        status: "pendiente",
+      }
+    );
+  }
 
-  await updateDoc(
-    doc(db, "orders", order.firestoreId),
-    {
-      delivered:
-        remaining <= 0
-          ? order.quantity
-          : newDelivered,
-      status:
-        remaining <= 0
-          ? "cumplido"
-          : "parcial",
+  /* ---------- BORRAR PEDIDOS ---------- */
+
+  async function removeOrdersByProduct(
+    product: string,
+    location: string
+  ) {
+    const toDelete = orders.filter(
+      (o) =>
+        o.product === product &&
+        o.location === location
+    );
+
+    for (const o of toDelete) {
+      if (!o.firestoreId) continue;
+      await deleteDoc(doc(db, "orders", o.firestoreId));
     }
-  );
-}
+  }
+
+  /* ---------- ENTREGAS ---------- */
+
+  async function deliverOrder(
+    id: number,
+    deliveredQty: number
+  ) {
+    const order = orders.find((o) => o.id === id);
+    if (!order?.firestoreId) return;
+
+    const newDelivered =
+      order.delivered + deliveredQty;
+
+    const remaining =
+      order.quantity - newDelivered;
+
+    await updateDoc(
+      doc(db, "orders", order.firestoreId),
+      {
+        delivered:
+          remaining <= 0
+            ? order.quantity
+            : newDelivered,
+
+        status:
+          remaining <= 0
+            ? "cumplido"
+            : "parcial",
+      }
+    );
+  }
 
   return (
     <OrdersContext.Provider
@@ -212,6 +217,7 @@ async function deliverOrder(
 
 export function useOrders() {
   const ctx = useContext(OrdersContext);
+
   if (!ctx)
     throw new Error("OrdersContext missing");
 

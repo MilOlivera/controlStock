@@ -9,11 +9,16 @@ export default function DeliveryForm({
 }: {
   location: string;
 }) {
-  const { products, updateVariantStock } =
-    useInventory();
+  const {
+    getProductsByLocation,
+    updateVariantStock,
+  } = useInventory();
 
   const { orders, deliverOrder } =
     useOrders();
+
+  const products =
+    getProductsByLocation(location);
 
   /* ---------- estados ---------- */
 
@@ -25,6 +30,15 @@ export default function DeliveryForm({
 
   const [toast, setToast] =
     useState<string | null>(null);
+
+  const [openProduct, setOpenProduct] =
+    useState<string | null>(null);
+
+  function toggleProduct(id: string) {
+    setOpenProduct((prev) =>
+      prev === id ? null : id
+    );
+  }
 
   function makeKey(
     productId: string,
@@ -158,81 +172,109 @@ export default function DeliveryForm({
   /* ---------- UI ---------- */
 
   return (
-    <div className="space-y-6">
-      {products.map((p) => (
-        <div
-          key={p.id}
-          className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
-        >
-          <div className="font-semibold mb-3">
-            {p.name}
+    <div className="space-y-4">
+      {products.map((p) => {
+        const isOpen =
+          openProduct === p.id;
+
+        return (
+          <div
+            key={p.id}
+            className="bg-zinc-900 border border-zinc-800 rounded-lg"
+          >
+            <button
+              onClick={() =>
+                toggleProduct(p.id)
+              }
+              className="w-full text-left p-4 flex justify-between items-center"
+            >
+              <span className="font-semibold">
+                {p.name}
+              </span>
+
+              <span className="text-zinc-500">
+                {isOpen ? "−" : "+"}
+              </span>
+            </button>
+
+            {isOpen && (
+              <div className="px-4 pb-4 space-y-3">
+                {p.variants.map((v) => {
+                  const key = makeKey(
+                    p.id,
+                    v.id
+                  );
+
+                  const stockActual =
+                    v.stock?.[location] ?? 0;
+
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between gap-4"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full"></span>
+                          <span>
+                            {v.brand} • {v.presentation} • {v.volume}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-zinc-500">
+                          Stock actual: {stockActual}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Cantidad"
+                          value={
+                            quantities[key] ??
+                            ""
+                          }
+                          onChange={(e) =>
+                            setQty(
+                              p.id,
+                              v.id,
+                              Number(
+                                e.target.value
+                              )
+                            )
+                          }
+                          className="w-24 bg-zinc-800 p-2 rounded text-right"
+                        />
+
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Precio"
+                          value={
+                            prices[key] ??
+                            ""
+                          }
+                          onChange={(e) =>
+                            setPrice(
+                              p.id,
+                              v.id,
+                              Number(
+                                e.target.value
+                              )
+                            )
+                          }
+                          className="w-28 bg-zinc-800 p-2 rounded text-right"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-
-          <div className="space-y-3">
-            {p.variants.map((v) => {
-              const key = makeKey(
-                p.id,
-                v.id
-              );
-
-              const stockActual =
-                v.stock?.[location] ?? 0;
-
-              return (
-              <div
-  key={key}
-  className="flex items-center justify-between gap-4"
->
-  {/* izquierda */}
-  <div className="flex-1">
-    <div className="flex items-center gap-2">
-      <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full"></span>
-      <span>{v.brand}</span>
-    </div>
-
-    <div className="text-xs text-zinc-500">
-      Stock actual: {stockActual}
-    </div>
-  </div>
-
-  {/* derecha */}
-  <div className="flex gap-2">
-    <input
-      type="number"
-      min="0"
-      placeholder="Cantidad"
-      value={quantities[key] ?? ""}
-      onChange={(e) =>
-        setQty(
-          p.id,
-          v.id,
-          Number(e.target.value)
-        )
-      }
-      className="w-24 bg-zinc-800 p-2 rounded text-right"
-    />
-
-    <input
-      type="number"
-      min="0"
-      placeholder="Precio"
-      value={prices[key] ?? ""}
-      onChange={(e) =>
-        setPrice(
-          p.id,
-          v.id,
-          Number(e.target.value)
-        )
-      }
-      className="w-28 bg-zinc-800 p-2 rounded text-right"
-    />
-  </div>
-</div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       <button
         onClick={handleSubmit}

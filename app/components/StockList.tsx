@@ -240,7 +240,9 @@ export default function StockList({
                         key={v.id}
                         className="flex justify-between text-sm text-zinc-300"
                       >
-                        <span>{v.brand}</span>
+                        <span>
+{v.brand} • {v.presentation} • {v.volume}
+</span>
 
                         {!editing ? (
                           <span className="font-semibold">

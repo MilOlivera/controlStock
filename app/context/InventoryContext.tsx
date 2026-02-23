@@ -23,7 +23,8 @@ import { db } from "../lib/firebase";
 export type Variant = {
   id: string;
   brand: string;
-  defaultPrice: number;
+  presentation: string;
+  volume: string;
   stock: {
     [location: string]: number;
   };
@@ -40,21 +41,17 @@ export type Product = {
   locations?: string[];
 };
 
-
-
 type InventoryContextType = {
   products: Product[];
+
+  getProductsByLocation: (
+    location: string
+  ) => Product[];
 
   getStock: (
     productName: string,
     location: string
   ) => number;
-
-  updateStock: (
-    productName: string,
-    location: string,
-    newStock: number
-  ) => void;
 
   updateVariantStock: (
     productName: string,
@@ -63,24 +60,16 @@ type InventoryContextType = {
     newStock: number
   ) => void;
 
-  consumeStock: (
-    productName: string,
-    location: string,
-    qty: number
-  ) => void;
-
- addProduct: (
-  product: Product,
-  locations?: string[]
-) => Promise<void>;
-
-
-
+  addProduct: (
+    product: Product,
+    locations?: string[]
+  ) => Promise<void>;
 
   addVariant: (
     productId: string,
     brand: string,
-    defaultPrice: number
+    presentation: string,
+    volume: string
   ) => Promise<void>;
 
   updateProduct: (
@@ -126,29 +115,24 @@ export function InventoryProvider({
   const [products, setProducts] =
     useState<Product[]>([]);
 
-  /* ---------- CARGA DESDE FIRESTORE ---------- */
-
   useEffect(() => {
     const unsub = onSnapshot(
       collection(db, "products"),
       (snapshot) => {
         const list: Product[] = snapshot.docs.map(
-  (docSnap) => {
-    const data =
-      docSnap.data() as Product;
+          (docSnap) => {
+            const data =
+              docSnap.data() as Product;
 
-    return {
-      ...data,
-      firestoreId: docSnap.id,
-
-      // MIGRACIÓN automática
-      locations:
-        data.locations ??
-        LOCATIONS,
-    };
-  }
-);
-
+            return {
+              ...data,
+              firestoreId: docSnap.id,
+              locations:
+                data.locations ??
+                LOCATIONS,
+            };
+          }
+        );
 
         setProducts(list);
       }
@@ -156,6 +140,18 @@ export function InventoryProvider({
 
     return () => unsub();
   }, []);
+
+  /* ---------- FILTRO POR LOCAL ---------- */
+
+  function getProductsByLocation(
+    location: string
+  ) {
+    return products.filter(
+      (p) =>
+        !p.locations ||
+        p.locations.includes(location)
+    );
+  }
 
   /* ---------- STOCK TOTAL ---------- */
 
@@ -176,116 +172,63 @@ export function InventoryProvider({
     );
   }
 
-  async function updateStock(
-  productName: string,
-  location: string,
-  newStock: number
-) {
-  const product = products.find(
-    (p) => p.name === productName
-  );
-
-  if (!product || !product.firestoreId)
-    return;
-
-  if (!product.variants.length) return;
-
-  const newVariants = product.variants.map(
-    (v, i) =>
-      i === 0
-        ? {
-            ...v,
-            stock: {
-              ...v.stock,
-              [location]: newStock,
-            },
-          }
-        : v
-  );
-
-  await updateDoc(
-    doc(db, "products", product.firestoreId),
-    { variants: newVariants }
-  );
-}
-
-
   async function updateVariantStock(
-  productName: string,
-  variantId: string,
-  location: string,
-  newStock: number
-) {
-  const product = products.find(
-    (p) => p.name === productName
-  );
-
-  if (!product || !product.firestoreId)
-    return;
-
-  const newVariants = product.variants.map(
-    (v) =>
-      v.id === variantId
-        ? {
-            ...v,
-            stock: {
-              ...v.stock,
-              [location]: newStock,
-            },
-          }
-        : v
-  );
-
-  await updateDoc(
-    doc(db, "products", product.firestoreId),
-    { variants: newVariants }
-  );
-}
-
-  function consumeStock(
     productName: string,
+    variantId: string,
     location: string,
-    qty: number
+    newStock: number
   ) {
-    updateStock(
-      productName,
-      location,
-      Math.max(
-        0,
-        getStock(productName, location) -
-          qty
-      )
+    const product = products.find(
+      (p) => p.name === productName
+    );
+
+    if (!product || !product.firestoreId)
+      return;
+
+    const newVariants = product.variants.map(
+      (v) =>
+        v.id === variantId
+          ? {
+              ...v,
+              stock: {
+                ...v.stock,
+                [location]: newStock,
+              },
+            }
+          : v
+    );
+
+    await updateDoc(
+      doc(db, "products", product.firestoreId),
+      { variants: newVariants }
     );
   }
 
   /* ---------- CRUD PRODUCT ---------- */
 
   async function addProduct(
-  product: Product,
-  locations?: string[]
-) {
-  const finalLocations =
-    locations && locations.length
-      ? locations
-      : LOCATIONS;
+    product: Product,
+    locations?: string[]
+  ) {
+    const finalLocations =
+      locations && locations.length
+        ? locations
+        : LOCATIONS;
 
-  product.locations = finalLocations;
+    product.locations = finalLocations;
 
-  product.variants.forEach((v) => {
-    v.stock = {};
-    LOCATIONS.forEach(
-      (loc) => (v.stock[loc] = 0)
+    product.variants.forEach((v) => {
+      v.stock = {};
+      LOCATIONS.forEach(
+        (loc) => (v.stock[loc] = 0)
+      );
+    });
+
+    await addDoc(
+      collection(db, "products"),
+      product
     );
-  });
-
-  await addDoc(
-    collection(db, "products"),
-    product
-  );
-}
-
-
-
+  }
 
   async function updateProduct(
     productId: string,
@@ -315,12 +258,13 @@ export function InventoryProvider({
     );
   }
 
-  /* ---------- CRUD VARIANTS ---------- */
+  /* ---------- VARIANTS ---------- */
 
   async function addVariant(
     productId: string,
     brand: string,
-    defaultPrice: number
+    presentation: string,
+    volume: string
   ) {
     const product = products.find(
       (p) => p.id === productId
@@ -329,9 +273,9 @@ export function InventoryProvider({
     if (!product?.firestoreId) return;
 
     const variantId =
-      productId +
-      "-" +
-      brand.toLowerCase().replace(/\s/g, "-");
+      `${productId}-${brand}-${volume}`
+        .toLowerCase()
+        .replace(/\s/g, "-");
 
     const stock: any = {};
     LOCATIONS.forEach(
@@ -340,7 +284,13 @@ export function InventoryProvider({
 
     const newVariants = [
       ...product.variants,
-      { id: variantId, brand, defaultPrice, stock },
+      {
+        id: variantId,
+        brand,
+        presentation,
+        volume,
+        stock,
+      },
     ];
 
     await updateDoc(
@@ -398,10 +348,9 @@ export function InventoryProvider({
     <InventoryContext.Provider
       value={{
         products,
+        getProductsByLocation,
         getStock,
-        updateStock,
         updateVariantStock,
-        consumeStock,
         addProduct,
         addVariant,
         updateProduct,

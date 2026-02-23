@@ -27,7 +27,14 @@ export default function AdminProducts({
   const [name, setName] = useState("");
   const [category, setCategory] =
     useState("");
+
   const [brand, setBrand] =
+    useState("");
+
+  const [presentation, setPresentation] =
+    useState("");
+
+  const [volume, setVolume] =
     useState("");
 
   const [criticalStock, setCriticalStock] =
@@ -39,8 +46,11 @@ export default function AdminProducts({
   const [newVariantBrand, setNewVariantBrand] =
     useState("");
 
-  const [newVariantPrice, setNewVariantPrice] =
-    useState(0);
+  const [newVariantPresentation, setNewVariantPresentation] =
+    useState("");
+
+  const [newVariantVolume, setNewVariantVolume] =
+    useState("");
 
   const [createInBoth, setCreateInBoth] =
     useState(false);
@@ -48,15 +58,16 @@ export default function AdminProducts({
   function handleCreateProduct() {
     if (!name) return alert("Nombre requerido");
     if (!brand) return alert("Marca requerida");
+    if (!presentation) return alert("Presentación requerida");
+    if (!volume) return alert("Volumen requerido");
 
     const productId = name
       .toLowerCase()
       .replace(/\s/g, "-");
 
-    const variantId =
-      productId +
-      "-" +
-      brand.toLowerCase().replace(/\s/g, "-");
+    const variantId = `${productId}-${brand}-${volume}`
+      .toLowerCase()
+      .replace(/\s/g, "-");
 
     const locations = createInBoth
       ? ["marpla-lomas", "evolvere"]
@@ -75,7 +86,8 @@ export default function AdminProducts({
           {
             id: variantId,
             brand,
-            defaultPrice: 0,
+            presentation,
+            volume,
             stock: {},
           },
         ],
@@ -83,11 +95,12 @@ export default function AdminProducts({
       locations
     );
 
-    /* reset formulario */
     setShowForm(false);
     setName("");
     setCategory("");
     setBrand("");
+    setPresentation("");
+    setVolume("");
     setCriticalStock("");
     setTargetStock("");
     setCreateInBoth(false);
@@ -95,15 +108,19 @@ export default function AdminProducts({
 
   function handleAddVariant(productId: string) {
     if (!newVariantBrand) return;
+    if (!newVariantPresentation) return;
+    if (!newVariantVolume) return;
 
     addVariant(
       productId,
       newVariantBrand,
-      newVariantPrice
+      newVariantPresentation,
+      newVariantVolume
     );
 
     setNewVariantBrand("");
-    setNewVariantPrice(0);
+    setNewVariantPresentation("");
+    setNewVariantVolume("");
   }
 
   return (
@@ -148,7 +165,24 @@ export default function AdminProducts({
             className="w-full bg-zinc-800 p-2 rounded"
           />
 
-          {/* stock crítico */}
+          <input
+            placeholder="Presentación (caja, pack, etc)"
+            value={presentation}
+            onChange={(e) =>
+              setPresentation(e.target.value)
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            placeholder="Volumen (500g, 2kg, etc)"
+            value={volume}
+            onChange={(e) =>
+              setVolume(e.target.value)
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
           <input
             type="number"
             min={0}
@@ -167,7 +201,6 @@ export default function AdminProducts({
             className="w-full bg-zinc-800 p-2 rounded"
           />
 
-          {/* stock objetivo */}
           <input
             type="number"
             min={0}
@@ -209,115 +242,145 @@ export default function AdminProducts({
       )}
 
       {products
-  .filter(
-    (p) =>
-      !p.locations ||
-      p.locations.includes(selectedLocation)
-  )
-  .map((p) => (
-
-        <div
-          key={p.firestoreId}
-          className="bg-zinc-900 p-3 rounded space-y-2 border border-zinc-800"
-        >
+        .filter(
+          (p) =>
+            !p.locations ||
+            p.locations.includes(
+              selectedLocation
+            )
+        )
+        .map((p) => (
           <div
-            className="flex justify-between cursor-pointer"
-            onClick={() =>
-              setOpenProduct(
-                openProduct === p.id
-                  ? null
-                  : p.id
-              )
-            }
+            key={p.firestoreId}
+            className="bg-zinc-900 p-3 rounded space-y-2 border border-zinc-800"
           >
-            <span className="font-semibold">
-              {p.name}
-            </span>
+            <div
+              className="flex justify-between cursor-pointer"
+              onClick={() =>
+                setOpenProduct(
+                  openProduct === p.id
+                    ? null
+                    : p.id
+                )
+              }
+            >
+              <span className="font-semibold">
+                {p.name}
+              </span>
 
-            <span className="text-zinc-400">
-              {p.category}
-            </span>
-          </div>
+              <span className="text-zinc-400">
+                {p.category}
+              </span>
+            </div>
 
-          {openProduct === p.id && (
-            <div className="space-y-2">
-              {p.variants.map((v) => (
-                <div
-                  key={v.id}
-                  className="bg-zinc-800 p-2 rounded flex justify-between"
-                >
-                  <span>{v.brand}</span>
+            {openProduct === p.id && (
+              <div className="space-y-2">
+                {p.variants.map((v) => (
+                  <div
+                    key={v.id}
+                    className="bg-zinc-800 p-2 rounded flex justify-between"
+                  >
+                    <span>
+                      {v.brand} •{" "}
+                      {v.presentation} •{" "}
+                      {v.volume}
+                    </span>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        const newBrand =
-                          prompt(
-                            "Nueva marca:",
-                            v.brand
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const newBrand =
+                            prompt(
+                              "Nueva marca:",
+                              v.brand
+                            );
+                          if (!newBrand)
+                            return;
+
+                          updateVariant(
+                            p.id,
+                            v.id,
+                            { brand: newBrand }
                           );
-                        if (!newBrand) return;
+                        }}
+                        className="bg-zinc-700 px-2 rounded cursor-pointer"
+                      >
+                        Editar
+                      </button>
 
-                        updateVariant(
-                          p.id,
-                          v.id,
-                          { brand: newBrand }
-                        );
-                      }}
-                      className="bg-zinc-700 px-2 rounded cursor-pointer"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        deleteVariant(
-                          p.id,
-                          v.id
-                        )
-                      }
-                      className="bg-red-700 px-2 rounded cursor-pointer"
-                    >
-                      Eliminar
-                    </button>
+                      <button
+                        onClick={() =>
+                          deleteVariant(
+                            p.id,
+                            v.id
+                          )
+                        }
+                        className="bg-red-700 px-2 rounded cursor-pointer"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              <div className="flex gap-2">
-                <input
-                  placeholder="Nueva marca"
-                  value={newVariantBrand}
-                  onChange={(e) =>
-                    setNewVariantBrand(
-                      e.target.value
-                    )
-                  }
-                  className="flex-1 bg-zinc-800 p-2 rounded"
-                />
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    placeholder="Marca"
+                    value={newVariantBrand}
+                    onChange={(e) =>
+                      setNewVariantBrand(
+                        e.target.value
+                      )
+                    }
+                    className="bg-zinc-800 p-2 rounded"
+                  />
+
+                  <input
+                    placeholder="Presentación"
+                    value={
+                      newVariantPresentation
+                    }
+                    onChange={(e) =>
+                      setNewVariantPresentation(
+                        e.target.value
+                      )
+                    }
+                    className="bg-zinc-800 p-2 rounded"
+                  />
+
+                  <input
+                    placeholder="Volumen"
+                    value={newVariantVolume}
+                    onChange={(e) =>
+                      setNewVariantVolume(
+                        e.target.value
+                      )
+                    }
+                    className="bg-zinc-800 p-2 rounded"
+                  />
+                </div>
 
                 <button
                   onClick={() =>
                     handleAddVariant(p.id)
                   }
-                  className="bg-green-700 px-3 rounded cursor-pointer"
+                  className="bg-green-700 px-3 py-2 rounded cursor-pointer w-full"
                 >
-                  Agregar
+                  Agregar variante
+                </button>
+
+                <button
+                  onClick={() =>
+                    deleteProduct(p.id)
+                  }
+                  className="bg-red-800 w-full py-2 rounded cursor-pointer"
+                >
+                  Eliminar producto
                 </button>
               </div>
-
-              <button
-                onClick={() =>
-                  deleteProduct(p.id)
-                }
-                className="bg-red-800 w-full py-2 rounded cursor-pointer"
-              >
-                Eliminar producto
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
+            )}
+          </div>
+        ))}
     </div>
   );
 }

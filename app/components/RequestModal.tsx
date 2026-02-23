@@ -22,6 +22,9 @@ export default function RequestModal({
   const [quantity, setQuantity] =
     useState<string>("");
 
+  const [variantId, setVariantId] =
+    useState<string>("");
+
   const [showConfirm, setShowConfirm] =
     useState(false);
 
@@ -29,8 +32,13 @@ export default function RequestModal({
     useState(false);
 
   /* ---------- SUGERENCIA ---------- */
+
   useEffect(() => {
     if (!product) return;
+
+    if (product.variants?.length) {
+      setVariantId(product.variants[0].id);
+    }
 
     const suggested =
       product.targetStock - product.stock;
@@ -44,7 +52,12 @@ export default function RequestModal({
 
   if (!product) return null;
 
+  const selectedVariant = product.variants?.find(
+    (v: any) => v.id === variantId
+  );
+
   /* ---------- SUBMIT ---------- */
+
   function handleSubmit() {
     if (!user?.location) {
       alert("Usuario sin local asignado");
@@ -80,7 +93,8 @@ export default function RequestModal({
       user.location,
       product.name,
       product.category,
-      qty
+      qty,
+      variantId
     );
 
     setSuccess(true);
@@ -117,12 +131,35 @@ export default function RequestModal({
   }
 
   /* ---------- UI ---------- */
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
       <div className="bg-zinc-900 p-4 rounded w-80 space-y-4">
+
         <h2 className="text-lg font-semibold">
           Solicitar {product.name}
         </h2>
+
+        {/* SELECT VARIANTE */}
+
+        {product.variants?.length > 0 && (
+          <select
+            value={variantId}
+            onChange={(e) =>
+              setVariantId(e.target.value)
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+            disabled={success}
+          >
+            {product.variants.map((v: any) => (
+              <option key={v.id} value={v.id}>
+                {v.brand} • {v.presentation} • {v.volume}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {/* CANTIDAD */}
 
         <input
           type="number"
@@ -146,9 +183,11 @@ export default function RequestModal({
           disabled={success}
         />
 
+        {/* SUCCESS */}
+
         {success && (
-          <div className="text-green-400 text-sm text-center animate-expandFade">
-            Pedido enviado correctamente ✅
+          <div className="bg-green-800 text-green-100 px-4 py-2 rounded text-center animate-expandFade">
+            Pedido enviado correctamente
           </div>
         )}
 
