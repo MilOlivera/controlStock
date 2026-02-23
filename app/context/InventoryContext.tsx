@@ -53,6 +53,7 @@ type InventoryContextType = {
     location: string
   ) => number;
 
+  /* NECESARIO PARA EDITSTOCKMODAL */
   updateStock: (
     productName: string,
     location: string,
@@ -178,7 +179,7 @@ export function InventoryProvider({
     );
   }
 
-  /* ---------- UPDATE STOCK (compatibilidad vieja UI) ---------- */
+  /* ---------- COMPATIBILIDAD EDITSTOCKMODAL ---------- */
 
   async function updateStock(
     productName: string,
