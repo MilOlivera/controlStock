@@ -53,12 +53,18 @@ type InventoryContextType = {
     location: string
   ) => number;
 
+  updateStock: (
+    productName: string,
+    location: string,
+    newStock: number
+  ) => Promise<void>;
+
   updateVariantStock: (
     productName: string,
     variantId: string,
     location: string,
     newStock: number
-  ) => void;
+  ) => Promise<void>;
 
   addProduct: (
     product: Product,
@@ -171,6 +177,43 @@ export function InventoryProvider({
       0
     );
   }
+
+  /* ---------- UPDATE STOCK (compatibilidad vieja UI) ---------- */
+
+  async function updateStock(
+    productName: string,
+    location: string,
+    newStock: number
+  ) {
+    const product = products.find(
+      (p) => p.name === productName
+    );
+
+    if (!product || !product.firestoreId)
+      return;
+
+    if (!product.variants.length) return;
+
+    const newVariants = product.variants.map(
+      (v, index) =>
+        index === 0
+          ? {
+              ...v,
+              stock: {
+                ...v.stock,
+                [location]: newStock,
+              },
+            }
+          : v
+    );
+
+    await updateDoc(
+      doc(db, "products", product.firestoreId),
+      { variants: newVariants }
+    );
+  }
+
+  /* ---------- UPDATE VARIANT ---------- */
 
   async function updateVariantStock(
     productName: string,
@@ -350,6 +393,7 @@ export function InventoryProvider({
         products,
         getProductsByLocation,
         getStock,
+        updateStock,
         updateVariantStock,
         addProduct,
         addVariant,
