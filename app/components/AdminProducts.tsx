@@ -208,7 +208,14 @@ export default function AdminProducts({
         </div>
       )}
 
-      {products.map((p) => (
+      {products
+  .filter(
+    (p) =>
+      !p.locations ||
+      p.locations.includes(selectedLocation)
+  )
+  .map((p) => (
+
         <div
           key={p.firestoreId}
           className="bg-zinc-900 p-3 rounded space-y-2 border border-zinc-800"

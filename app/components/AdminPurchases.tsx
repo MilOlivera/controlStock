@@ -32,22 +32,8 @@ export default function AdminPurchases({
   const [unitPrice, setUnitPrice] =
     useState<number>(0);
 
-  /* ---------- COMPRA SUGERIDA ---------- */
-
-  const suggestedPurchases =
-    orders.reduce((acc: any, o) => {
-      if (o.status === "cumplido")
-        return acc;
-
-      const remaining =
-        o.quantity - o.delivered;
-
-      acc[o.product] =
-        (acc[o.product] || 0) +
-        remaining;
-
-      return acc;
-    }, {});
+  const [success, setSuccess] =
+    useState(false);
 
   /* ---------- ENTREGA AUTO ---------- */
 
@@ -108,7 +94,6 @@ export default function AdminPurchases({
     const current =
       variant.stock?.[location] ?? 0;
 
-    /* 🔥 ahora se actualiza la variante correcta */
     updateVariantStock(
       selectedProduct,
       variant.id,
@@ -132,7 +117,20 @@ export default function AdminPurchases({
 
     setQuantity(0);
     setUnitPrice(0);
+    setSelectedProduct("");
+    setSelectedVariant("");
+
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 2500);
   }
+
+  /* ---------- PEDIDOS DEL PRODUCTO ---------- */
+
+  const relatedOrders = orders.filter(
+    (o) =>
+      o.product === selectedProduct &&
+      o.status !== "cumplido"
+  );
 
   /* ---------- UI ---------- */
 
@@ -142,37 +140,17 @@ export default function AdminPurchases({
     );
 
   return (
-    <div className="space-y-6">
-      {/* COMPRA SUGERIDA */}
-      <div>
-        <h2 className="text-lg font-semibold">
-          🧠 Compra sugerida
-        </h2>
-
-        <div className="space-y-2 mt-2">
-          {Object.entries(
-            suggestedPurchases
-          ).map(([name, qty]: any) => (
-            <div
-              key={name}
-              className="bg-zinc-900 p-3 rounded flex justify-between"
-            >
-              <span>{name}</span>
-              <span>
-                Comprar: {qty}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-8">
 
       {/* REPARTO MANUAL */}
+
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">
-          🛒 Reparto manual
+          Reparto manual
         </h2>
 
         <div className="flex gap-3 items-center">
+
           <select
             value={selectedProduct}
             onChange={(e) => {
@@ -184,7 +162,7 @@ export default function AdminPurchases({
             className="bg-zinc-800 p-2 rounded flex-1"
           >
             <option value="">
-              Producto
+              Seleccionar producto
             </option>
 
             {products.map((p) => (
@@ -208,7 +186,7 @@ export default function AdminPurchases({
             disabled={!selectedProductData}
           >
             <option value="">
-              Marca
+              Seleccionar marca
             </option>
 
             {selectedProductData?.variants.map(
@@ -226,8 +204,8 @@ export default function AdminPurchases({
           <input
             type="number"
             min="0"
-            placeholder="Cant."
-            value={quantity}
+            placeholder="Cantidad"
+            value={quantity || ""}
             onChange={(e) =>
               setQuantity(
                 Math.max(
@@ -236,14 +214,14 @@ export default function AdminPurchases({
                 )
               )
             }
-            className="bg-zinc-800 p-2 rounded w-24 text-right"
+            className="bg-zinc-800 p-2 rounded w-28 text-right"
           />
 
           <input
             type="number"
             min="0"
-            placeholder="$"
-            value={unitPrice}
+            placeholder="Valor unitario"
+            value={unitPrice || ""}
             onChange={(e) =>
               setUnitPrice(
                 Math.max(
@@ -252,22 +230,61 @@ export default function AdminPurchases({
                 )
               )
             }
-            className="bg-zinc-800 p-2 rounded w-24 text-right"
+            className="bg-zinc-800 p-2 rounded w-36 text-right"
           />
         </div>
 
         <button
           onClick={handleApply}
-          className="bg-green-700 px-4 py-2 rounded mx-auto block"
+          className="bg-green-700 px-4 py-2 rounded mx-auto block hover:bg-green-600 transition"
         >
           Aplicar reparto
         </button>
+
+        {success && (
+          <div className="text-green-400 text-center text-sm">
+            Reparto aplicado correctamente
+          </div>
+        )}
       </div>
 
+      {/* INFO DE PEDIDOS */}
+
+      {selectedProduct && relatedOrders.length > 0 && (
+        <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+          <div className="text-sm text-zinc-400 mb-2">
+            Pedidos pendientes de este producto
+          </div>
+
+          <div className="space-y-2">
+            {relatedOrders.map((o) => {
+              const remaining =
+                o.quantity - o.delivered;
+
+              return (
+                <div
+                  key={o.id}
+                  className="flex justify-between text-sm"
+                >
+                  <span>
+                    {o.location}
+                  </span>
+
+                  <span className="text-zinc-400">
+                    Faltan {remaining}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ENTREGA MASIVA */}
+
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">
-          🚚 Entrega masiva
+          Entrega masiva
         </h2>
 
         <DeliveryForm location={location} />

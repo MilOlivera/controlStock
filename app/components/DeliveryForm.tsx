@@ -9,18 +9,22 @@ export default function DeliveryForm({
 }: {
   location: string;
 }) {
-  const {
-    products,
-    updateVariantStock,
-  } = useInventory();
+  const { products, updateVariantStock } =
+    useInventory();
 
   const { orders, deliverOrder } =
     useOrders();
 
   /* ---------- estados ---------- */
-  // clave: productId|variantId
+
   const [quantities, setQuantities] =
     useState<Record<string, number>>({});
+
+  const [prices, setPrices] =
+    useState<Record<string, number>>({});
+
+  const [toast, setToast] =
+    useState<string | null>(null);
 
   function makeKey(
     productId: string,
@@ -49,7 +53,28 @@ export default function DeliveryForm({
     }));
   }
 
+  function setPrice(
+    productId: string,
+    variantId: string,
+    price: number
+  ) {
+    const key = makeKey(
+      productId,
+      variantId
+    );
+
+    const safePrice = Number.isNaN(price)
+      ? 0
+      : Math.max(0, price);
+
+    setPrices((prev) => ({
+      ...prev,
+      [key]: safePrice,
+    }));
+  }
+
   /* ---------- auto entrega pedidos ---------- */
+
   function autoDeliverOrders(
     productName: string,
     availableQty: number
@@ -80,6 +105,7 @@ export default function DeliveryForm({
   }
 
   /* ---------- aplicar ---------- */
+
   function handleSubmit() {
     Object.entries(quantities).forEach(
       ([key, qty]) => {
@@ -105,7 +131,6 @@ export default function DeliveryForm({
         const currentStock =
           variant.stock?.[location] ?? 0;
 
-        /* actualizar variante */
         updateVariantStock(
           product.name,
           variantId,
@@ -113,7 +138,6 @@ export default function DeliveryForm({
           currentStock + qty
         );
 
-        /* entrega automática */
         autoDeliverOrders(
           product.name,
           qty
@@ -121,20 +145,30 @@ export default function DeliveryForm({
       }
     );
 
-    /* limpiar formulario */
     setQuantities({});
+    setPrices({});
+
+    setToast("Entrega aplicada correctamente");
+
+    setTimeout(() => {
+      setToast(null);
+    }, 2500);
   }
 
   /* ---------- UI ---------- */
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {products.map((p) => (
-        <div key={p.id}>
-          <div className="text-sm text-zinc-400 mb-1">
+        <div
+          key={p.id}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg p-4"
+        >
+          <div className="font-semibold mb-3">
             {p.name}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {p.variants.map((v) => {
               const key = makeKey(
                 p.id,
@@ -145,37 +179,55 @@ export default function DeliveryForm({
                 v.stock?.[location] ?? 0;
 
               return (
-                <div
-                  key={key}
-                  className="bg-zinc-900 p-3 rounded flex justify-between items-center gap-3"
-                >
-                  <div className="flex-1">
-                    <div>{v.brand}</div>
-                    <div className="text-xs text-zinc-500">
-                      Stock actual:{" "}
-                      {stockActual}
-                    </div>
-                  </div>
+              <div
+  key={key}
+  className="flex items-center justify-between gap-4"
+>
+  {/* izquierda */}
+  <div className="flex-1">
+    <div className="flex items-center gap-2">
+      <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full"></span>
+      <span>{v.brand}</span>
+    </div>
 
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Cant."
-                    value={
-                      quantities[key] ?? ""
-                    }
-                    onChange={(e) =>
-                      setQty(
-                        p.id,
-                        v.id,
-                        Number(
-                          e.target.value
-                        )
-                      )
-                    }
-                    className="w-20 bg-zinc-800 p-1 rounded text-right"
-                  />
-                </div>
+    <div className="text-xs text-zinc-500">
+      Stock actual: {stockActual}
+    </div>
+  </div>
+
+  {/* derecha */}
+  <div className="flex gap-2">
+    <input
+      type="number"
+      min="0"
+      placeholder="Cantidad"
+      value={quantities[key] ?? ""}
+      onChange={(e) =>
+        setQty(
+          p.id,
+          v.id,
+          Number(e.target.value)
+        )
+      }
+      className="w-24 bg-zinc-800 p-2 rounded text-right"
+    />
+
+    <input
+      type="number"
+      min="0"
+      placeholder="Precio"
+      value={prices[key] ?? ""}
+      onChange={(e) =>
+        setPrice(
+          p.id,
+          v.id,
+          Number(e.target.value)
+        )
+      }
+      className="w-28 bg-zinc-800 p-2 rounded text-right"
+    />
+  </div>
+</div>
               );
             })}
           </div>
@@ -184,10 +236,16 @@ export default function DeliveryForm({
 
       <button
         onClick={handleSubmit}
-        className="bg-green-700 px-4 py-2 rounded mx-auto block"
+        className="bg-green-700 px-5 py-2 rounded mx-auto block hover:bg-green-600 transition"
       >
         Aplicar entregas
       </button>
+
+      {toast && (
+        <div className="bg-green-800 text-green-100 px-4 py-2 rounded text-center">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
