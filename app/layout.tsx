@@ -6,6 +6,7 @@ import { OrdersProvider } from "./context/OrdersContext";
 import { InventoryProvider } from "./context/InventoryContext";
 import { UserProvider } from "./context/UserContext";
 import { MovementsProvider } from "./context/MovementsContext";
+import { SupplierProvider } from "./context/SupplierContext";
 
 import LoginScreen from "./components/LoginScreen";
 import { useUser } from "./context/UserContext";
@@ -37,16 +38,22 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <UserProvider>
-          <MovementsProvider>
-          <InventoryProvider>
-            <OrdersProvider>
-                <AuthGate>
-                  {children}
-                </AuthGate>
-            </OrdersProvider>
-          </InventoryProvider>
-          </MovementsProvider>
-        </UserProvider>
+  <MovementsProvider>
+    <SupplierProvider>
+
+      <InventoryProvider>
+        <OrdersProvider>
+
+          <AuthGate>
+            {children}
+          </AuthGate>
+
+        </OrdersProvider>
+      </InventoryProvider>
+
+    </SupplierProvider>
+  </MovementsProvider>
+</UserProvider>
       </body>
     </html>
   );

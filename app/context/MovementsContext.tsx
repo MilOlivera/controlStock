@@ -18,6 +18,7 @@ export type Movement = {
   type: MovementType;
   quantity: number;
   unitPrice: number;
+  supplier?: string;
   date: Date;
 };
 
@@ -29,18 +30,17 @@ type MovementsContextType = {
     location: string,
     type: MovementType,
     quantity: number,
-    unitPrice: number
+    unitPrice: number,
+    supplier?: string
   ) => void;
-};
 
-/* ---------- CONTEXTO ---------- */
+  getSuppliers: () => string[];
+};
 
 const MovementsContext =
   createContext<MovementsContextType | null>(
     null
   );
-
-/* ---------- PROVIDER ---------- */
 
 export function MovementsProvider({
   children,
@@ -70,8 +70,6 @@ export function MovementsProvider({
       return [];
     });
 
-  /* ---------- PERSISTENCIA ---------- */
-
   useEffect(() => {
     localStorage.setItem(
       "movements",
@@ -79,16 +77,24 @@ export function MovementsProvider({
     );
   }, [movements]);
 
-  /* ---------- ALTA MOVIMIENTO ---------- */
+  function getSuppliers() {
+    const set = new Set<string>();
+
+    movements.forEach((m) => {
+      if (m.supplier) set.add(m.supplier);
+    });
+
+    return Array.from(set);
+  }
 
   function addMovement(
     product: string,
     location: string,
     type: MovementType,
     quantity: number,
-    unitPrice: number
+    unitPrice: number,
+    supplier?: string
   ) {
-    /* 🔥 diferir actualización para evitar error React */
     setTimeout(() => {
       setMovements((prev) => [
         ...prev,
@@ -99,6 +105,7 @@ export function MovementsProvider({
           type,
           quantity,
           unitPrice,
+          supplier,
           date: new Date(),
         },
       ]);
@@ -107,14 +114,12 @@ export function MovementsProvider({
 
   return (
     <MovementsContext.Provider
-      value={{ movements, addMovement }}
+      value={{ movements, addMovement, getSuppliers }}
     >
       {children}
     </MovementsContext.Provider>
   );
 }
-
-/* ---------- HOOK ---------- */
 
 export function useMovements() {
   const ctx = useContext(MovementsContext);

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useInventory } from "../context/InventoryContext";
 import { useOrders } from "../context/OrdersContext";
 import { useMovements } from "../context/MovementsContext";
+import { useSuppliers } from "../context/SupplierContext";
 import DeliveryForm from "./DeliveryForm";
 
 export default function AdminPurchases({
@@ -11,7 +12,6 @@ export default function AdminPurchases({
 }: {
   location: string;
 }) {
-
   const {
     getProductsByLocation,
     updateVariantStock,
@@ -23,26 +23,44 @@ export default function AdminPurchases({
   const { addMovement } =
     useMovements();
 
+  const { suppliers, addSupplier } =
+    useSuppliers();
+
   const visibleProducts =
     getProductsByLocation(location);
 
   const [selectedProduct, setSelectedProduct] =
-    useState<string>("");
+    useState("");
 
   const [selectedBrand, setSelectedBrand] =
-    useState<string>("");
+    useState("");
 
   const [selectedVariant, setSelectedVariant] =
-    useState<string>("");
+    useState("");
 
   const [quantity, setQuantity] =
-    useState<number>(0);
+    useState(0);
 
   const [unitPrice, setUnitPrice] =
-    useState<number>(0);
+    useState(0);
+
+  const [supplier, setSupplier] =
+    useState("");
 
   const [success, setSuccess] =
     useState(false);
+
+  /* ---------- CREAR PROVEEDOR ---------- */
+
+  async function createSupplier() {
+    const name = prompt("Nombre del proveedor");
+
+    if (!name) return;
+
+    await addSupplier(name);
+
+    setSupplier(name);
+  }
 
   /* ---------- PRODUCTO ACTUAL ---------- */
 
@@ -51,7 +69,7 @@ export default function AdminPurchases({
       (p) => p.name === selectedProduct
     );
 
-  /* ---------- MARCAS ÚNICAS ---------- */
+  /* ---------- MARCAS ---------- */
 
   const brands = useMemo(() => {
     if (!selectedProductData) return [];
@@ -65,7 +83,7 @@ export default function AdminPurchases({
     ];
   }, [selectedProductData]);
 
-  /* ---------- VARIANTES FILTRADAS ---------- */
+  /* ---------- VARIANTES ---------- */
 
   const filteredVariants = useMemo(() => {
     if (!selectedProductData) return [];
@@ -75,7 +93,7 @@ export default function AdminPurchases({
     );
   }, [selectedProductData, selectedBrand]);
 
-  /* ---------- ENTREGA AUTO ---------- */
+  /* ---------- AUTO ENTREGA ---------- */
 
   function autoDeliverOrders(
     product: string,
@@ -151,19 +169,21 @@ export default function AdminPurchases({
       location,
       "ingreso",
       quantity,
-      unitPrice
+      unitPrice,
+      supplier
     );
 
     setQuantity(0);
     setUnitPrice(0);
     setSelectedBrand("");
     setSelectedVariant("");
+    setSupplier("");
 
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2500);
   }
 
-  /* ---------- PEDIDOS DEL PRODUCTO ---------- */
+  /* ---------- PEDIDOS ---------- */
 
   const relatedOrders = orders.filter(
     (o) =>
@@ -183,7 +203,7 @@ export default function AdminPurchases({
           Reparto manual
         </h2>
 
-        <div className="flex gap-3 items-center">
+        <div className="flex flex-col md:flex-row gap-3">
 
           {/* PRODUCTO */}
 
@@ -230,10 +250,7 @@ export default function AdminPurchases({
             </option>
 
             {brands.map((brand) => (
-              <option
-                key={brand}
-                value={brand}
-              >
+              <option key={brand} value={brand}>
                 {brand}
               </option>
             ))}
@@ -256,14 +273,45 @@ export default function AdminPurchases({
             </option>
 
             {filteredVariants.map((v) => (
-              <option
-                key={v.id}
-                value={v.id}
-              >
+              <option key={v.id} value={v.id}>
                 {v.presentation} • {v.volume}
               </option>
             ))}
           </select>
+
+          {/* PROVEEDOR */}
+
+          <div className="flex gap-2">
+
+            <select
+              value={supplier}
+              onChange={(e) =>
+                setSupplier(e.target.value)
+              }
+              className="bg-zinc-800 p-2 rounded"
+            >
+              <option value="">
+                Proveedor
+              </option>
+
+              {suppliers.map((s) => (
+                <option
+                  key={s.firestoreId ?? s.name}
+                  value={s.name}
+                >
+                  {s.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={createSupplier}
+              className="bg-zinc-700 px-3 rounded hover:bg-zinc-600"
+            >
+              +
+            </button>
+
+          </div>
 
           {/* CANTIDAD */}
 
@@ -300,6 +348,7 @@ export default function AdminPurchases({
             }
             className="bg-zinc-800 p-2 rounded w-36 text-right"
           />
+
         </div>
 
         <button
@@ -318,35 +367,34 @@ export default function AdminPurchases({
 
       {/* INFO PEDIDOS */}
 
-      {selectedProduct && relatedOrders.length > 0 && (
-        <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
-          <div className="text-sm text-zinc-400 mb-2">
-            Pedidos pendientes de este producto
+      {selectedProduct &&
+        relatedOrders.length > 0 && (
+          <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+            <div className="text-sm text-zinc-400 mb-2">
+              Pedidos pendientes de este producto
+            </div>
+
+            <div className="space-y-2">
+              {relatedOrders.map((o) => {
+                const remaining =
+                  o.quantity - o.delivered;
+
+                return (
+                  <div
+                    key={o.id}
+                    className="flex justify-between text-sm"
+                  >
+                    <span>{o.location}</span>
+
+                    <span className="text-zinc-400">
+                      Faltan {remaining}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-
-          <div className="space-y-2">
-            {relatedOrders.map((o) => {
-              const remaining =
-                o.quantity - o.delivered;
-
-              return (
-                <div
-                  key={o.id}
-                  className="flex justify-between text-sm"
-                >
-                  <span>
-                    {o.location}
-                  </span>
-
-                  <span className="text-zinc-400">
-                    Faltan {remaining}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+        )}
 
       {/* ENTREGA MASIVA */}
 

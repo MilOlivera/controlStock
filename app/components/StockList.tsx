@@ -41,10 +41,23 @@ export default function StockList({
       p.locations.includes(loc)
   );
 
+  /* ---------- ORDEN CORRECTO ---------- */
+
   const sortedProducts = [...visibleProducts].sort(
     (a, b) => {
       const stockA = getStock(a.name, loc);
       const stockB = getStock(b.name, loc);
+
+      const priority = (p: any, stock: number) => {
+        if (stock <= 0) return 0; // rojo
+        if (stock <= p.criticalStock) return 1; // amarillo
+        return 2; // ok
+      };
+
+      const pA = priority(a, stockA);
+      const pB = priority(b, stockB);
+
+      if (pA !== pB) return pA - pB;
 
       return stockA - stockB;
     }
@@ -61,7 +74,7 @@ export default function StockList({
     const initialVariants: Record<string, number> =
       {};
 
-    products.forEach((p) => {
+    visibleProducts.forEach((p) => {
       p.variants.forEach((v) => {
         const key = makeVariantKey(
           p.id,
@@ -83,7 +96,7 @@ export default function StockList({
   }
 
   function saveChanges() {
-    products.forEach((p) => {
+    visibleProducts.forEach((p) => {
       p.variants.forEach((v) => {
         const key = makeVariantKey(
           p.id,
@@ -159,7 +172,8 @@ export default function StockList({
             loc
           );
 
-          const noStock = totalStock === 0;
+          const noStock = totalStock <= 0;
+
           const critical =
             totalStock > 0 &&
             totalStock <= p.criticalStock;
@@ -241,8 +255,8 @@ export default function StockList({
                         className="flex justify-between text-sm text-zinc-300"
                       >
                         <span>
-{v.brand} • {v.presentation} • {v.volume}
-</span>
+                          {v.brand} • {v.presentation} • {v.volume}
+                        </span>
 
                         {!editing ? (
                           <span className="font-semibold">
@@ -263,14 +277,12 @@ export default function StockList({
                               e.stopPropagation()
                             }
                             onChange={(e) => {
-                              const val =
-                                e.target.value;
-
                               const num =
-                                Number(val);
+                                Number(
+                                  e.target.value
+                                );
 
-                              if (num < 0)
-                                return;
+                              if (num < 0) return;
 
                               setEditedVariantStocks(
                                 (prev) => ({
