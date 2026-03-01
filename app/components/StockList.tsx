@@ -4,6 +4,7 @@ import { useState } from "react";
 import RequestModal from "./RequestModal";
 import { useInventory } from "../context/InventoryContext";
 import { useUser } from "../context/UserContext";
+import { formatStock } from "../lib/stockFormatter";
 
 export default function StockList({
   locationOverride,
@@ -49,9 +50,9 @@ export default function StockList({
       const stockB = getStock(b.name, loc);
 
       const priority = (p: any, stock: number) => {
-        if (stock <= 0) return 0; // rojo
-        if (stock <= p.criticalStock) return 1; // amarillo
-        return 2; // ok
+        if (stock <= 0) return 0;
+        if (stock <= p.criticalStock) return 1;
+        return 2;
       };
 
       const pA = priority(a, stockA);
@@ -198,7 +199,6 @@ export default function StockList({
                 }
               `}
             >
-              {/* FILA PRINCIPAL */}
               <div className="flex justify-between items-center">
                 <div>
                   <div className="font-semibold">
@@ -209,7 +209,7 @@ export default function StockList({
                   <div className="text-sm text-zinc-400">
                     Stock total:{" "}
                     <span className="text-white font-semibold">
-                      {totalStock}
+                      {formatStock(totalStock)}
                     </span>
                   </div>
 
@@ -260,39 +260,29 @@ export default function StockList({
 
                         {!editing ? (
                           <span className="font-semibold">
-                            {v.stock?.[
-                              loc
-                            ] || 0}
+                            {formatStock(
+                              v.stock?.[loc] || 0
+                            )}
                           </span>
                         ) : (
                           <input
-                            type="number"
-                            min={0}
-                            value={
-                              editedVariantStocks[
-                                key
-                              ] ?? 0
-                            }
-                            onClick={(e) =>
-                              e.stopPropagation()
-                            }
-                            onChange={(e) => {
-                              const num =
-                                Number(
-                                  e.target.value
-                                );
+  type="number"
+  min={0}
+  step="0.25"
+  inputMode="decimal"
+  value={editedVariantStocks[key] ?? 0}
+  onClick={(e) => e.stopPropagation()}
+  onChange={(e) => {
+    const num = Number(e.target.value);
+    if (num < 0) return;
 
-                              if (num < 0) return;
-
-                              setEditedVariantStocks(
-                                (prev) => ({
-                                  ...prev,
-                                  [key]: num,
-                                })
-                              );
-                            }}
-                            className="bg-zinc-800 p-1 rounded w-20 text-right"
-                          />
+    setEditedVariantStocks((prev) => ({
+      ...prev,
+      [key]: num,
+    }));
+  }}
+  className="bg-zinc-800 p-1 rounded w-20 text-right"
+/>
                         )}
                       </div>
                     );
