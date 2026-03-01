@@ -25,6 +25,9 @@ export default function StockList({
   const [editing, setEditing] =
     useState(false);
 
+  const [search, setSearch] =
+    useState("");
+
   const [editedVariantStocks, setEditedVariantStocks] =
     useState<Record<string, number>>({});
 
@@ -36,11 +39,30 @@ export default function StockList({
 
   /* ---------- PRODUCTOS VISIBLES ---------- */
 
-  const visibleProducts = products.filter(
-    (p) =>
-      !p.locations ||
-      p.locations.includes(loc)
-  );
+  const visibleProducts = products
+    .filter(
+      (p) =>
+        !p.locations ||
+        p.locations.includes(loc)
+    )
+    .filter((p) => {
+      const query = search.toLowerCase();
+
+      if (p.name.toLowerCase().includes(query))
+        return true;
+
+      return p.variants.some((v) =>
+        (
+          v.brand +
+          " " +
+          v.presentation +
+          " " +
+          v.volume
+        )
+          .toLowerCase()
+          .includes(query)
+      );
+    });
 
   /* ---------- ORDEN CORRECTO ---------- */
 
@@ -139,6 +161,7 @@ export default function StockList({
 
   return (
     <>
+      {/* BOTONES */}
       <div className="flex justify-center mb-3 gap-3">
         {!editing ? (
           <button
@@ -166,6 +189,20 @@ export default function StockList({
         )}
       </div>
 
+      {/* BUSCADOR */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Buscar producto..."
+          value={search}
+          onChange={(e) =>
+            setSearch(e.target.value)
+          }
+          className="w-full bg-zinc-800 p-2 rounded outline-none"
+        />
+      </div>
+
+      {/* LISTA */}
       <div className="space-y-3">
         {sortedProducts.map((p) => {
           const totalStock = getStock(
@@ -266,23 +303,35 @@ export default function StockList({
                           </span>
                         ) : (
                           <input
-  type="number"
-  min={0}
-  step="0.25"
-  inputMode="decimal"
-  value={editedVariantStocks[key] ?? 0}
-  onClick={(e) => e.stopPropagation()}
-  onChange={(e) => {
-    const num = Number(e.target.value);
-    if (num < 0) return;
+                            type="number"
+                            min={0}
+                            step="0.25"
+                            inputMode="decimal"
+                            value={
+                              editedVariantStocks[
+                                key
+                              ] ?? 0
+                            }
+                            onClick={(e) =>
+                              e.stopPropagation()
+                            }
+                            onChange={(e) => {
+                              const num =
+                                Number(
+                                  e.target.value
+                                );
 
-    setEditedVariantStocks((prev) => ({
-      ...prev,
-      [key]: num,
-    }));
-  }}
-  className="bg-zinc-800 p-1 rounded w-20 text-right"
-/>
+                              if (num < 0) return;
+
+                              setEditedVariantStocks(
+                                (prev) => ({
+                                  ...prev,
+                                  [key]: num,
+                                })
+                              );
+                            }}
+                            className="bg-zinc-800 p-1 rounded w-20 text-right"
+                          />
                         )}
                       </div>
                     );
