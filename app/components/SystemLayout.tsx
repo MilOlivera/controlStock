@@ -11,6 +11,7 @@ import AdminOrdersList from "./AdminOrdersList";
 import AdminPurchases from "./AdminPurchases";
 import GlobalRequestForm from "./GlobalRequestForm";
 import AdminProducts from "./AdminProducts";
+import DocumentsPanel from "./DocumentsPanel";
 
 
 import marplaLogo from "../assets/marplaLogo.jpeg";
@@ -106,6 +107,7 @@ export default function SystemLayout({
     "stock",
     "solicitar",
     "pedidos",
+    "documentacion",
   ];
 
   const adminTabs = [
@@ -113,6 +115,7 @@ export default function SystemLayout({
     "pedidos",
     "compras",
     "productos",
+    "documentacion",
     "metricas",
   ];
 
@@ -271,6 +274,10 @@ export default function SystemLayout({
                 })}
               </div>
             )}
+           
+            {tab === "documentacion" && (
+              <DocumentsPanel location={effectiveLocation} />
+            )}
           </>
         )}
 
@@ -302,6 +309,10 @@ export default function SystemLayout({
               <AdminProducts
                 selectedLocation={effectiveLocation}
               />
+            )}
+
+            {tab === "documentacion" && (
+              <DocumentsPanel location={effectiveLocation} />
             )}
 
             {tab === "metricas" && (
