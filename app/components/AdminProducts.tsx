@@ -24,8 +24,7 @@ export default function AdminProducts({
   const [editingProductId, setEditingProductId] =
     useState<string | null>(null);
 
-  const [editName, setEditName] =
-    useState("");
+  const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] =
     useState("");
   const [editCritical, setEditCritical] =
@@ -75,16 +74,12 @@ export default function AdminProducts({
     setEditTarget(p.targetStock);
   }
 
-  async function saveProductChanges(
-    productId: string
-  ) {
+  async function saveProductChanges(productId: string) {
     await updateProduct(productId, {
       name: editName,
       category: editCategory,
-      criticalStock:
-        Number(editCritical) || 0,
-      targetStock:
-        Number(editTarget) || 0,
+      criticalStock: Number(editCritical) || 0,
+      targetStock: Number(editTarget) || 0,
     });
 
     setEditingProductId(null);
@@ -92,13 +87,11 @@ export default function AdminProducts({
 
   /* ================= CREAR PRODUCTO ================= */
 
-  function handleCreateProduct() {
+  async function handleCreateProduct() {
     if (!name) return alert("Nombre requerido");
     if (!brand) return alert("Marca requerida");
-    if (!presentation)
-      return alert("Presentación requerida");
-    if (!volume)
-      return alert("Volumen requerido");
+    if (!presentation) return alert("Presentación requerida");
+    if (!volume) return alert("Volumen requerido");
 
     const productId = name
       .toLowerCase()
@@ -112,15 +105,13 @@ export default function AdminProducts({
       ? ["marpla-lomas", "evolvere"]
       : [selectedLocation];
 
-    addProduct(
+    await addProduct(
       {
         id: productId,
         name,
         category,
-        criticalStock:
-          Number(criticalStock) || 0,
-        targetStock:
-          Number(targetStock) || 0,
+        criticalStock: Number(criticalStock) || 0,
+        targetStock: Number(targetStock) || 0,
         variants: [
           {
             id: variantId,
@@ -144,6 +135,8 @@ export default function AdminProducts({
     setTargetStock("");
     setCreateInBoth(false);
   }
+
+  /* ================= AGREGAR VARIANTE ================= */
 
   function handleAddVariant(productId: string) {
     if (!newVariantBrand) return;
@@ -169,127 +162,226 @@ export default function AdminProducts({
       </h2>
 
       <button
-        onClick={() =>
-          setShowForm(!showForm)
-        }
+        onClick={() => setShowForm(!showForm)}
         className="bg-zinc-800 px-3 py-2 rounded hover:bg-zinc-700"
       >
         ➕ Nuevo producto
       </button>
 
+      {/* ================= FORM NUEVO PRODUCTO ================= */}
+
+      {showForm && (
+        <div className="bg-zinc-900 p-4 rounded space-y-3 border border-zinc-800">
+
+          <input
+            placeholder="Nombre"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            placeholder="Categoría"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            placeholder="Marca"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            placeholder="Presentación"
+            value={presentation}
+            onChange={(e) =>
+              setPresentation(e.target.value)
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            placeholder="Volumen"
+            value={volume}
+            onChange={(e) => setVolume(e.target.value)}
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="Stock crítico"
+            value={criticalStock}
+            onChange={(e) =>
+              setCriticalStock(Number(e.target.value))
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <input
+            type="number"
+            placeholder="Stock objetivo"
+            value={targetStock}
+            onChange={(e) =>
+              setTargetStock(Number(e.target.value))
+            }
+            className="w-full bg-zinc-800 p-2 rounded"
+          />
+
+          <label className="flex gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={createInBoth}
+              onChange={(e) =>
+                setCreateInBoth(e.target.checked)
+              }
+            />
+            Crear también en el otro local
+          </label>
+
+          <button
+            onClick={handleCreateProduct}
+            className="bg-green-700 px-3 py-2 rounded w-full"
+          >
+            Crear producto
+          </button>
+        </div>
+      )}
+
+      {/* ================= LISTA PRODUCTOS ================= */}
+
       {products
         .filter(
           (p) =>
             !p.locations ||
-            p.locations.includes(
-              selectedLocation
-            )
+            p.locations.includes(selectedLocation)
         )
         .map((p) => (
           <div
             key={p.firestoreId}
             className="bg-zinc-900 p-3 rounded border border-zinc-800"
           >
-            <div className="flex justify-between items-center">
-              {editingProductId ===
-              p.id ? (
-                <div className="space-y-2 w-full">
-                  <input
-                    value={editName}
-                    onChange={(e) =>
-                      setEditName(
-                        e.target.value
-                      )
-                    }
-                    className="w-full bg-zinc-800 p-2 rounded"
-                  />
+            {/* HEADER */}
+            <div
+              className="flex justify-between cursor-pointer"
+              onClick={() =>
+                setOpenProduct(
+                  openProduct === p.id ? null : p.id
+                )
+              }
+            >
+              <span className="font-semibold">
+                {p.name}
+              </span>
 
-                  <input
-                    value={editCategory}
-                    onChange={(e) =>
-                      setEditCategory(
-                        e.target.value
-                      )
-                    }
-                    className="w-full bg-zinc-800 p-2 rounded"
-                  />
-
-                  <input
-                    type="number"
-                    value={editCritical}
-                    onChange={(e) =>
-                      setEditCritical(
-                        Number(
-                          e.target.value
-                        )
-                      )
-                    }
-                    className="w-full bg-zinc-800 p-2 rounded"
-                    placeholder="Stock crítico"
-                  />
-
-                  <input
-                    type="number"
-                    value={editTarget}
-                    onChange={(e) =>
-                      setEditTarget(
-                        Number(
-                          e.target.value
-                        )
-                      )
-                    }
-                    className="w-full bg-zinc-800 p-2 rounded"
-                    placeholder="Stock objetivo"
-                  />
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() =>
-                        saveProductChanges(
-                          p.id
-                        )
-                      }
-                      className="bg-green-700 px-3 py-1 rounded"
-                    >
-                      Guardar
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        setEditingProductId(
-                          null
-                        )
-                      }
-                      className="bg-zinc-700 px-3 py-1 rounded"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <div className="font-semibold">
-                      {p.name}
-                    </div>
-                    <div className="text-sm text-zinc-400">
-                      {p.category}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      startEditingProduct(
-                        p
-                      )
-                    }
-                    className="bg-zinc-700 px-2 py-1 rounded text-xs"
-                  >
-                    Editar
-                  </button>
-                </>
-              )}
+              <span className="text-zinc-400">
+                {p.category}
+              </span>
             </div>
+
+            {/* DETALLE */}
+            {openProduct === p.id && (
+              <div className="space-y-2 mt-2">
+
+                {/* VARIANTES */}
+                {p.variants.map((v) => (
+                  <div
+                    key={v.id}
+                    className="bg-zinc-800 p-2 rounded flex justify-between"
+                  >
+                    <span>
+                      {v.brand} • {v.presentation} • {v.volume}
+                    </span>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const newBrand =
+                            prompt(
+                              "Nueva marca:",
+                              v.brand
+                            );
+                          if (!newBrand) return;
+
+                          updateVariant(p.id, v.id, {
+                            brand: newBrand,
+                          });
+                        }}
+                        className="bg-zinc-700 px-2 rounded"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          deleteVariant(p.id, v.id)
+                        }
+                        className="bg-red-700 px-2 rounded"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {/* NUEVA VARIANTE */}
+
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    placeholder="Marca"
+                    value={newVariantBrand}
+                    onChange={(e) =>
+                      setNewVariantBrand(
+                        e.target.value
+                      )
+                    }
+                    className="bg-zinc-800 p-2 rounded"
+                  />
+
+                  <input
+                    placeholder="Presentación"
+                    value={newVariantPresentation}
+                    onChange={(e) =>
+                      setNewVariantPresentation(
+                        e.target.value
+                      )
+                    }
+                    className="bg-zinc-800 p-2 rounded"
+                  />
+
+                  <input
+                    placeholder="Volumen"
+                    value={newVariantVolume}
+                    onChange={(e) =>
+                      setNewVariantVolume(
+                        e.target.value
+                      )
+                    }
+                    className="bg-zinc-800 p-2 rounded"
+                  />
+                </div>
+
+                <button
+                  onClick={() =>
+                    handleAddVariant(p.id)
+                  }
+                  className="bg-green-700 px-3 py-2 rounded w-full"
+                >
+                  Agregar variante
+                </button>
+
+                {/* ELIMINAR PRODUCTO */}
+
+                <button
+                  onClick={() => deleteProduct(p.id)}
+                  className="bg-red-800 w-full py-2 rounded"
+                >
+                  Eliminar producto
+                </button>
+              </div>
+            )}
           </div>
         ))}
     </div>

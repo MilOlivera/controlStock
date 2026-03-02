@@ -8,6 +8,7 @@ import { UserProvider } from "./context/UserContext";
 import { MovementsProvider } from "./context/MovementsContext";
 import { SupplierProvider } from "./context/SupplierContext";
 import { DocumentsProvider } from "./context/DocumentsContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import LoginScreen from "./components/LoginScreen";
 import { useUser } from "./context/UserContext";
@@ -45,11 +46,11 @@ export default function RootLayout({
       <InventoryProvider>
         <OrdersProvider>
           <DocumentsProvider>
-
+            <ErrorBoundary>
             <AuthGate>
               {children}
             </AuthGate>
-            
+            </ErrorBoundary>
           </DocumentsProvider>
         </OrdersProvider>
       </InventoryProvider>

@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "../lib/firebase";
+import { logInfo, logError } from "../lib/logger";
 
 /* ---------- TIPOS ---------- */
 
@@ -53,7 +54,6 @@ type InventoryContextType = {
     location: string
   ) => number;
 
-  /* NECESARIO PARA EDITSTOCKMODAL */
   updateStock: (
     productName: string,
     location: string,
@@ -101,9 +101,7 @@ type InventoryContextType = {
 };
 
 const InventoryContext =
-  createContext<InventoryContextType | null>(
-    null
-  );
+  createContext<InventoryContextType | null>(null);
 
 /* ---------- LOCALES ---------- */
 
@@ -121,6 +119,8 @@ export function InventoryProvider({
 }) {
   const [products, setProducts] =
     useState<Product[]>([]);
+
+  /* ---------- LISTENER FIRESTORE ---------- */
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -179,39 +179,49 @@ export function InventoryProvider({
     );
   }
 
-  /* ---------- COMPATIBILIDAD EDITSTOCKMODAL ---------- */
+  /* ---------- EDIT STOCK MODAL ---------- */
 
   async function updateStock(
     productName: string,
     location: string,
     newStock: number
   ) {
-    const product = products.find(
-      (p) => p.name === productName
-    );
+    try {
+      logInfo("Update stock", {
+        productName,
+        location,
+        newStock,
+      });
 
-    if (!product || !product.firestoreId)
-      return;
+      const product = products.find(
+        (p) => p.name === productName
+      );
 
-    if (!product.variants.length) return;
+      if (!product || !product.firestoreId)
+        return;
 
-    const newVariants = product.variants.map(
-      (v, index) =>
-        index === 0
-          ? {
-              ...v,
-              stock: {
-                ...v.stock,
-                [location]: newStock,
-              },
-            }
-          : v
-    );
+      if (!product.variants.length) return;
 
-    await updateDoc(
-      doc(db, "products", product.firestoreId),
-      { variants: newVariants }
-    );
+      const newVariants = product.variants.map(
+        (v, index) =>
+          index === 0
+            ? {
+                ...v,
+                stock: {
+                  ...v.stock,
+                  [location]: newStock,
+                },
+              }
+            : v
+      );
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        { variants: newVariants }
+      );
+    } catch (err) {
+      logError("Error updating stock", err);
+    }
   }
 
   /* ---------- UPDATE VARIANT ---------- */
@@ -222,87 +232,131 @@ export function InventoryProvider({
     location: string,
     newStock: number
   ) {
-    const product = products.find(
-      (p) => p.name === productName
-    );
+    try {
+      logInfo("Update variant stock", {
+        productName,
+        variantId,
+        location,
+        newStock,
+      });
 
-    if (!product || !product.firestoreId)
-      return;
+      const product = products.find(
+        (p) => p.name === productName
+      );
 
-    const newVariants = product.variants.map(
-      (v) =>
-        v.id === variantId
-          ? {
-              ...v,
-              stock: {
-                ...v.stock,
-                [location]: newStock,
-              },
-            }
-          : v
-    );
+      if (!product || !product.firestoreId)
+        return;
 
-    await updateDoc(
-      doc(db, "products", product.firestoreId),
-      { variants: newVariants }
-    );
+      const newVariants = product.variants.map(
+        (v) =>
+          v.id === variantId
+            ? {
+                ...v,
+                stock: {
+                  ...v.stock,
+                  [location]: newStock,
+                },
+              }
+            : v
+      );
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        { variants: newVariants }
+      );
+    } catch (err) {
+      logError("Error updating variant", err);
+    }
   }
 
-  /* ---------- CRUD PRODUCT ---------- */
+  /* ---------- CREAR PRODUCTO ---------- */
 
   async function addProduct(
     product: Product,
     locations?: string[]
   ) {
-    const finalLocations =
-      locations && locations.length
-        ? locations
-        : LOCATIONS;
+    try {
+      logInfo("Creating product", product);
 
-    product.locations = finalLocations;
+      const finalLocations =
+        locations && locations.length
+          ? locations
+          : LOCATIONS;
 
-    product.variants.forEach((v) => {
-      v.stock = {};
-      LOCATIONS.forEach(
-        (loc) => (v.stock[loc] = 0)
+      const newProduct: Product = {
+        ...product,
+        locations: finalLocations,
+        variants: product.variants.map((v) => {
+          const stock: Record<string, number> =
+            {};
+
+          LOCATIONS.forEach((loc) => {
+            stock[loc] = 0;
+          });
+
+          return {
+            ...v,
+            stock,
+          };
+        }),
+      };
+
+      await addDoc(
+        collection(db, "products"),
+        newProduct
       );
-    });
 
-    await addDoc(
-      collection(db, "products"),
-      product
-    );
+      logInfo("Product created successfully");
+    } catch (err) {
+      logError("Error creating product", err);
+    }
   }
+
+  /* ---------- UPDATE PRODUCT ---------- */
 
   async function updateProduct(
     productId: string,
     data: Partial<Product>
   ) {
-    const product = products.find(
-      (p) => p.id === productId
-    );
+    try {
+      logInfo("Update product", productId);
 
-    if (!product?.firestoreId) return;
+      const product = products.find(
+        (p) => p.id === productId
+      );
 
-    await updateDoc(
-      doc(db, "products", product.firestoreId),
-      data
-    );
+      if (!product?.firestoreId) return;
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        data
+      );
+    } catch (err) {
+      logError("Error updating product", err);
+    }
   }
+
+  /* ---------- DELETE PRODUCT ---------- */
 
   async function deleteProduct(productId: string) {
-    const product = products.find(
-      (p) => p.id === productId
-    );
+    try {
+      logInfo("Delete product", productId);
 
-    if (!product?.firestoreId) return;
+      const product = products.find(
+        (p) => p.id === productId
+      );
 
-    await deleteDoc(
-      doc(db, "products", product.firestoreId)
-    );
+      if (!product?.firestoreId) return;
+
+      await deleteDoc(
+        doc(db, "products", product.firestoreId)
+      );
+    } catch (err) {
+      logError("Error deleting product", err);
+    }
   }
 
-  /* ---------- VARIANTS ---------- */
+  /* ---------- ADD VARIANT ---------- */
 
   async function addVariant(
     productId: string,
@@ -310,82 +364,104 @@ export function InventoryProvider({
     presentation: string,
     volume: string
   ) {
-    const product = products.find(
-      (p) => p.id === productId
-    );
+    try {
+      logInfo("Add variant", productId);
 
-    if (!product?.firestoreId) return;
+      const product = products.find(
+        (p) => p.id === productId
+      );
 
-    const variantId =
-      `${productId}-${brand}-${volume}`
-        .toLowerCase()
-        .replace(/\s/g, "-");
+      if (!product?.firestoreId) return;
 
-    const stock: any = {};
-    LOCATIONS.forEach(
-      (loc) => (stock[loc] = 0)
-    );
+      const variantId =
+        `${productId}-${brand}-${volume}`
+          .toLowerCase()
+          .replace(/\s/g, "-");
 
-    const newVariants = [
-      ...product.variants,
-      {
-        id: variantId,
-        brand,
-        presentation,
-        volume,
-        stock,
-      },
-    ];
+      const stock: any = {};
+      LOCATIONS.forEach(
+        (loc) => (stock[loc] = 0)
+      );
 
-    await updateDoc(
-      doc(db, "products", product.firestoreId),
-      { variants: newVariants }
-    );
+      const newVariants = [
+        ...product.variants,
+        {
+          id: variantId,
+          brand,
+          presentation,
+          volume,
+          stock,
+        },
+      ];
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        { variants: newVariants }
+      );
+    } catch (err) {
+      logError("Error adding variant", err);
+    }
   }
+
+  /* ---------- UPDATE VARIANT ---------- */
 
   async function updateVariant(
     productId: string,
     variantId: string,
     data: Partial<Variant>
   ) {
-    const product = products.find(
-      (p) => p.id === productId
-    );
+    try {
+      logInfo("Update variant", variantId);
 
-    if (!product?.firestoreId) return;
+      const product = products.find(
+        (p) => p.id === productId
+      );
 
-    const newVariants = product.variants.map(
-      (v) =>
-        v.id === variantId
-          ? { ...v, ...data }
-          : v
-    );
+      if (!product?.firestoreId) return;
 
-    await updateDoc(
-      doc(db, "products", product.firestoreId),
-      { variants: newVariants }
-    );
+      const newVariants = product.variants.map(
+        (v) =>
+          v.id === variantId
+            ? { ...v, ...data }
+            : v
+      );
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        { variants: newVariants }
+      );
+    } catch (err) {
+      logError("Error updating variant", err);
+    }
   }
+
+  /* ---------- DELETE VARIANT ---------- */
 
   async function deleteVariant(
     productId: string,
     variantId: string
   ) {
-    const product = products.find(
-      (p) => p.id === productId
-    );
+    try {
+      logInfo("Delete variant", variantId);
 
-    if (!product?.firestoreId) return;
-
-    const newVariants =
-      product.variants.filter(
-        (v) => v.id !== variantId
+      const product = products.find(
+        (p) => p.id === productId
       );
 
-    await updateDoc(
-      doc(db, "products", product.firestoreId),
-      { variants: newVariants }
-    );
+      if (!product?.firestoreId) return;
+
+      const newVariants =
+        product.variants.filter(
+          (v) => v.id !== variantId
+        );
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        { variants: newVariants }
+      );
+    } catch (err) {
+      logError("Error deleting variant", err);
+    }
   }
 
   return (
