@@ -186,16 +186,26 @@ export default function SystemLayout({
 
       {/* ---------- TABS ---------- */}
 {/* ---------- TABS ---------- */}
-<div className="flex border-b border-zinc-800 bg-black">
+<div className="flex flex-wrap border-b border-zinc-800 bg-black">
   {tabs.map((item) => (
     <button
       key={item}
       onClick={() => setTab(item)}
-      className={`relative flex-1 p-3 text-sm capitalize cursor-pointer transition-colors border-b-2 ${
-        tab === item
-          ? `bg-zinc-800 font-semibold ${brandConfig.accent}`
-          : "bg-black hover:bg-zinc-900 border-transparent"
-      }`}
+      className={`
+        relative
+        w-1/2 sm:flex-1
+        p-3
+        text-sm
+        capitalize
+        cursor-pointer
+        transition-colors
+        border-b-2
+        ${
+          tab === item
+            ? `bg-zinc-800 font-semibold ${brandConfig.accent}`
+            : "bg-black hover:bg-zinc-900 border-transparent"
+        }
+      `}
     >
       <div className="flex items-center justify-center gap-2">
         {item}
@@ -211,16 +221,10 @@ export default function SystemLayout({
   ))}
 </div>
 
-
-      <main
+<main
   key={tab}
-  className="
-    flex-1 p-4
-    animate-tabFade
-  "
+  className="flex-1 p-4 animate-tabFade"
 >
-
-
         {/* ---------- LOCAL ---------- */}
         {user?.role !== "ADMIN" && (
           <>

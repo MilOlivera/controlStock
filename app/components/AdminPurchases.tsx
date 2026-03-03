@@ -28,6 +28,14 @@ export default function AdminPurchases({
 
   const visibleProducts =
     getProductsByLocation(location);
+  
+    const sortedProducts = useMemo(() => {
+  return [...visibleProducts].sort((a, b) =>
+    a.name.localeCompare(b.name, "es", {
+      sensitivity: "base",
+    })
+  );
+}, [visibleProducts]);
 
   const [selectedProduct, setSelectedProduct] =
     useState("");
@@ -222,14 +230,14 @@ export default function AdminPurchases({
               Seleccionar producto
             </option>
 
-            {visibleProducts.map((p) => (
-              <option
-                key={p.id}
-                value={p.name}
-              >
-                {p.name}
-              </option>
-            ))}
+            {sortedProducts.map((p) => (
+  <option
+    key={p.id}
+    value={p.name}
+  >
+    {p.name}
+  </option>
+))}
           </select>
 
           {/* MARCA */}

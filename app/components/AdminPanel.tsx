@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useInventory } from "../context/InventoryContext";
 import { useOrders } from "../context/OrdersContext";
 import { useMovements } from "../context/MovementsContext";
@@ -16,18 +16,20 @@ export default function AdminPanel({
   const { products, getStock } =
     useInventory();
 
-  const { orders } = useOrders();
   const { movements } = useMovements();
 
   const [days, setDays] = useState(30);
 
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
+  const cutoff = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d;
+  }, [days]);
 
-  /* ---------- CONSUMO ---------- */
+  /* ================= CONSUMO ================= */
 
-  const consumption = movements
-    .filter((m: any) => {
+  const filteredMovements = movements.filter(
+    (m: any) => {
       const movementDate =
         m.date instanceof Date
           ? m.date
@@ -39,149 +41,115 @@ export default function AdminPanel({
         movementDate >= cutoff &&
         m.location === location
       );
-    })
-    .reduce((acc: any, m: any) => {
+    }
+  );
+
+  const consumption: Record<string, number> =
+  filteredMovements.reduce(
+    (acc: Record<string, number>, m: any) => {
       const qty = Math.abs(m.quantity);
       acc[m.product] =
         (acc[m.product] || 0) + qty;
       return acc;
-    }, {});
+    },
+    {}
+  );
 
   const ranking = Object.entries(consumption)
     .sort((a: any, b: any) => b[1] - a[1])
     .slice(0, 5);
 
-  /* ---------- STOCK POR LOCAL ---------- */
+  /* ================= KPI ================= */
 
-  function getTotalStock(product: any) {
-    return getStock(product.name, location);
-  }
-
-  /* ---------- STOCK CRÍTICO ---------- */
-
-  const criticalProducts = products.filter(
-    (p) =>
-      getTotalStock(p) <= p.criticalStock
+  const totalConsumption = Object.values(
+    consumption
+  ).reduce(
+    (acc: any, val: any) => acc + val,
+    0
   );
 
-  /* ---------- PEDIDOS ACTIVOS ---------- */
+  const avgDailyConsumption =
+    totalConsumption / days;
 
-  const activeOrders = orders.filter(
-    (o) =>
-      o.status !== "cumplido" &&
-      o.location === location
+  const productsWithoutMovement =
+    products.filter(
+      (p) => !consumption[p.name]
+    ).length;
+
+  const totalStockValue = products.reduce(
+    (acc, p) =>
+      acc + getStock(p.name, location),
+    0
   );
 
-  /* ---------- UI ---------- */
+  /* ================= UI ================= */
 
   return (
     <div className="space-y-6">
-      {/* STOCK CRÍTICO */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">
-          ⚠ Stock crítico
-        </h2>
 
-        {criticalProducts.length === 0 && (
-          <div className="text-zinc-400">
-            No hay productos críticos.
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {criticalProducts.map((p) => (
-            <div
-              key={p.name}
-              className="bg-red-900 p-3 rounded flex justify-between"
-            >
-              <span>{p.name}</span>
-              <span>
-                Stock: {getTotalStock(p)} /
-                Crítico: {p.criticalStock}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* PEDIDOS ACTIVOS */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">
-          📦 Pedidos activos
-        </h2>
-
-        {activeOrders.length === 0 && (
-          <div className="text-zinc-400">
-            No hay pedidos pendientes.
-          </div>
-        )}
-
-        <div className="space-y-2">
-          {activeOrders.map((o) => (
-            <div
-              key={o.id}
-              className="bg-zinc-900 p-3 rounded flex justify-between"
-            >
-              <span>{o.product}</span>
-              <span>
-                Faltan:{" "}
-                {o.quantity - o.delivered}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* INVENTARIO */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">
-          📊 Inventario actual
-        </h2>
-
-        <div className="space-y-2">
-          {products.map((p) => (
-            <div
-              key={p.name}
-              className="bg-zinc-900 p-3 rounded flex justify-between"
-            >
-              <span>{p.name}</span>
-              <span>
-                {getTotalStock(p)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* CONSUMO */}
-      <div>
-        <h2 className="text-lg font-semibold mb-2">
-          📈 Productos más consumidos
-        </h2>
-
-        <div className="flex gap-2 mb-2 justify-center">
+      {/* RANGE SELECTOR */}
+      <div className="flex gap-2 justify-center">
+        {[7, 30, 90].map((d) => (
           <button
-            onClick={() => setDays(7)}
-            className={`px-2 py-1 rounded ${
-              days === 7
+            key={d}
+            onClick={() => setDays(d)}
+            className={`px-3 py-1 rounded ${
+              days === d
                 ? "bg-zinc-700"
                 : "bg-zinc-900"
             }`}
           >
-            7 días
+            {d} días
           </button>
+        ))}
+      </div>
 
-          <button
-            onClick={() => setDays(30)}
-            className={`px-2 py-1 rounded ${
-              days === 30
-                ? "bg-zinc-700"
-                : "bg-zinc-900"
-            }`}
-          >
-            30 días
-          </button>
+      {/* KPI CARDS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+        <div className="bg-zinc-900 p-4 rounded">
+          <div className="text-zinc-400 text-sm">
+            Consumo total
+          </div>
+          <div className="text-xl font-semibold">
+            {totalConsumption}
+          </div>
         </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          <div className="text-zinc-400 text-sm">
+            Promedio diario
+          </div>
+          <div className="text-xl font-semibold">
+            {avgDailyConsumption.toFixed(2)}
+          </div>
+        </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          <div className="text-zinc-400 text-sm">
+            Productos sin movimiento
+          </div>
+          <div className="text-xl font-semibold">
+            {productsWithoutMovement}
+          </div>
+        </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          <div className="text-zinc-400 text-sm">
+            Stock actual total
+          </div>
+          <div className="text-xl font-semibold">
+            {totalStockValue}
+          </div>
+        </div>
+
+      </div>
+
+      {/* RANKING */}
+      <div>
+        <h2 className="text-lg font-semibold mb-2">
+          📈 Top 5 productos más consumidos
+        </h2>
 
         <div className="space-y-2">
           {ranking.map(
@@ -197,10 +165,17 @@ export default function AdminPanel({
               </div>
             )
           )}
+
+          {ranking.length === 0 && (
+            <div className="text-zinc-400">
+              Sin consumo en este período.
+            </div>
+          )}
         </div>
       </div>
 
-      {/* CHARTS */}
+      {/* CHARTS (NO LOS TOCAMOS) */}
+
       <ConsumptionChart
         days={days}
         location={location}
