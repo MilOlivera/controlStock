@@ -85,8 +85,9 @@ type InventoryContextType = {
   ) => Promise<void>;
 
   deleteProduct: (
-    productId: string
-  ) => Promise<void>;
+  productId: string,
+  location: string
+) => Promise<void>;
 
   updateVariant: (
     productId: string,
@@ -338,23 +339,63 @@ export function InventoryProvider({
 
   /* ---------- DELETE PRODUCT ---------- */
 
-  async function deleteProduct(productId: string) {
-    try {
-      logInfo("Delete product", productId);
+  /* ---------- DELETE PRODUCT ---------- */
 
-      const product = products.find(
-        (p) => p.id === productId
+async function deleteProduct(
+  productId: string,
+  location: string
+) {
+  try {
+    logInfo("Delete product", {
+      productId,
+      location,
+    });
+
+    const product = products.find(
+      (p) => p.id === productId
+    );
+
+    if (!product?.firestoreId) return;
+
+    const productLocations =
+      product.locations ?? LOCATIONS;
+
+    /* quitar solo este local */
+
+    const remainingLocations =
+      productLocations.filter(
+        (loc) => loc !== location
       );
 
-      if (!product?.firestoreId) return;
+    /* si no queda en ningún local → borrar documento */
 
+    if (remainingLocations.length === 0) {
       await deleteDoc(
         doc(db, "products", product.firestoreId)
       );
-    } catch (err) {
-      logError("Error deleting product", err);
+
+      logInfo(
+        "Product deleted completely"
+      );
+    } else {
+      /* si queda en otros locales → actualizar locations */
+
+      await updateDoc(
+        doc(db, "products", product.firestoreId),
+        {
+          locations: remainingLocations,
+        }
+      );
+
+      logInfo(
+        "Product removed only from location",
+        remainingLocations
+      );
     }
+  } catch (err) {
+    logError("Error deleting product", err);
   }
+}
 
   /* ---------- ADD VARIANT ---------- */
 

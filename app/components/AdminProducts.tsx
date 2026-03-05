@@ -375,11 +375,13 @@ export default function AdminProducts({
                 {/* ELIMINAR PRODUCTO */}
 
                 <button
-                  onClick={() => deleteProduct(p.id)}
-                  className="bg-red-800 w-full py-2 rounded"
-                >
-                  Eliminar producto
-                </button>
+  onClick={() =>
+    deleteProduct(p.id, selectedLocation)
+  }
+  className="bg-red-800 w-full py-2 rounded"
+>
+  Eliminar producto
+</button>
               </div>
             )}
           </div>
