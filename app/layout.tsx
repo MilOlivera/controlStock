@@ -8,10 +8,8 @@ import { UserProvider } from "./context/UserContext";
 import { MovementsProvider } from "./context/MovementsContext";
 import { SupplierProvider } from "./context/SupplierContext";
 import { DocumentsProvider } from "./context/DocumentsContext";
+import { RemitosProvider } from "./context/RemitosContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-
-import LoginScreen from "./components/LoginScreen";
-import { useUser } from "./context/UserContext";
 import AuthGate from "./components/AuthGate";
 
 const geistSans = Geist({
@@ -40,24 +38,24 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <UserProvider>
-  <MovementsProvider>
-    <SupplierProvider>
-
-      <InventoryProvider>
-        <OrdersProvider>
-          <DocumentsProvider>
-            <ErrorBoundary>
-            <AuthGate>
-              {children}
-            </AuthGate>
-            </ErrorBoundary>
-          </DocumentsProvider>
-        </OrdersProvider>
-      </InventoryProvider>
-
-    </SupplierProvider>
-  </MovementsProvider>
-</UserProvider>
+          <MovementsProvider>
+            <SupplierProvider>
+              <InventoryProvider>
+                <OrdersProvider>
+                  <DocumentsProvider>
+                    <RemitosProvider>
+                      <ErrorBoundary>
+                        <AuthGate>
+                          {children}
+                        </AuthGate>
+                      </ErrorBoundary>
+                    </RemitosProvider>
+                  </DocumentsProvider>
+                </OrdersProvider>
+              </InventoryProvider>
+            </SupplierProvider>
+          </MovementsProvider>
+        </UserProvider>
       </body>
     </html>
   );

@@ -3,15 +3,27 @@
 import {
   createContext,
   useContext,
-  useState,
   useEffect,
+  useState,
 } from "react";
+
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  Timestamp,
+} from "firebase/firestore";
+
+import { db } from "../lib/firebase";
 
 /* ---------- TIPOS ---------- */
 
 type MovementType = "ingreso" | "ajuste";
 
 export type Movement = {
+  firestoreId?: string;
   id: number;
   product: string;
   location: string;
@@ -24,7 +36,6 @@ export type Movement = {
 
 type MovementsContextType = {
   movements: Movement[];
-
   addMovement: (
     product: string,
     location: string,
@@ -32,62 +43,55 @@ type MovementsContextType = {
     quantity: number,
     unitPrice: number,
     supplier?: string
-  ) => void;
-
+  ) => Promise<void>;
   getSuppliers: () => string[];
 };
 
 const MovementsContext =
-  createContext<MovementsContextType | null>(
-    null
-  );
+  createContext<MovementsContextType | null>(null);
+
+/* ---------- PROVIDER ---------- */
 
 export function MovementsProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [movements, setMovements] =
-    useState<Movement[]>(() => {
-      if (typeof window !== "undefined") {
-        const saved =
-          localStorage.getItem("movements");
+  const [movements, setMovements] = useState<Movement[]>([]);
 
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
+  /* LISTENER FIRESTORE */
+  useEffect(() => {
+    const q = query(
+      collection(db, "movements"),
+      orderBy("date", "desc")
+    );
 
-            return parsed.map((m: any) => ({
-              ...m,
-              date: new Date(m.date),
-            }));
-          } catch {
-            return [];
-          }
-        }
-      }
-
-      return [];
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list: Movement[] = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          ...data,
+          firestoreId: d.id,
+          date: data.date?.toDate?.() ?? new Date(),
+        } as Movement;
+      });
+      setMovements(list);
     });
 
-  useEffect(() => {
-    localStorage.setItem(
-      "movements",
-      JSON.stringify(movements)
-    );
-  }, [movements]);
+    return () => unsub();
+  }, []);
 
+  /* SUPPLIERS */
   function getSuppliers() {
     const set = new Set<string>();
-
     movements.forEach((m) => {
       if (m.supplier) set.add(m.supplier);
     });
-
     return Array.from(set);
   }
 
-  function addMovement(
+  /* ADD MOVEMENT */
+  async function addMovement(
     product: string,
     location: string,
     type: MovementType,
@@ -95,21 +99,16 @@ export function MovementsProvider({
     unitPrice: number,
     supplier?: string
   ) {
-    setTimeout(() => {
-      setMovements((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          product,
-          location,
-          type,
-          quantity,
-          unitPrice,
-          supplier,
-          date: new Date(),
-        },
-      ]);
-    }, 0);
+    await addDoc(collection(db, "movements"), {
+      id: Date.now() + Math.random(),
+      product,
+      location,
+      type,
+      quantity,
+      unitPrice: unitPrice || 0,
+      supplier: supplier || "",
+      date: Timestamp.now(),
+    });
   }
 
   return (
@@ -123,9 +122,6 @@ export function MovementsProvider({
 
 export function useMovements() {
   const ctx = useContext(MovementsContext);
-
-  if (!ctx)
-    throw new Error("MovementsContext missing");
-
+  if (!ctx) throw new Error("MovementsContext missing");
   return ctx;
 }
