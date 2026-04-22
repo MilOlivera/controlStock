@@ -51,6 +51,7 @@ export type Cierre = {
   medRellenaDesecho: number;
   trenzasSobrantes: number;
   latasCrudasQuedan: number;
+  medCrudasQuedan: number;
   observacion?: string;
   creadoPor: string;
   createdAt: Date;

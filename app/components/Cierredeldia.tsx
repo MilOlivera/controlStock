@@ -31,6 +31,7 @@ export default function CierreDelDia({
   const [medRellenaDesecho, setMedRellenaDesecho] = useState("");
   const [trenzasSobrantes, setTrenzasSobrantes] = useState("");
   const [latasCrudasQuedan, setLatasCrudasQuedan] = useState("");
+  const [medCrudasQuedan, setMedCrudasQuedan] = useState("");
   const [obsCierre, setObsCierre] = useState("");
   const [guardandoCierre, setGuardandoCierre] = useState(false);
 
@@ -61,6 +62,7 @@ export default function CierreDelDia({
         medRellenaDesecho: Number(medRellenaDesecho || 0),
         trenzasSobrantes: Number(trenzasSobrantes),
         latasCrudasQuedan: Number(latasCrudasQuedan || 0),
+        medCrudasQuedan: Number(medCrudasQuedan || 0),
         observacion: obsCierre,
         creadoPor: user?.email ?? "desconocido",
       });
@@ -117,7 +119,6 @@ export default function CierreDelDia({
           )}
         </div>
 
-        {/* Resumen del cierre de ayer si existe */}
         {cierreHoy === undefined && remitoAyer && (
           <div className="bg-zinc-800/50 rounded-xl p-3 mb-4 text-sm text-zinc-400">
             Remito de ayer: {remitoAyer.unidadesMedialunas} medialunas en {remitoAyer.latasMedialunas} latas
@@ -152,7 +153,6 @@ export default function CierreDelDia({
                 className={inputClass}
               />
             </div>
-
             <div>
               <label className={labelClass}>Observacion</label>
               <textarea
@@ -163,7 +163,6 @@ export default function CierreDelDia({
                 className="w-full bg-zinc-800 text-white text-lg rounded-xl p-4 border-2 border-zinc-700 focus:border-blue-500 outline-none resize-none"
               />
             </div>
-
             <button
               onClick={handleGuardarConfirmacion}
               disabled={guardandoConf}
@@ -194,27 +193,22 @@ export default function CierreDelDia({
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-zinc-800 rounded-xl p-4 text-center">
                 <div className="text-zinc-400 text-xs uppercase mb-1">Para devolver</div>
-                <div className="text-3xl font-bold text-blue-400">
-                  {cierreHoy.medParaDevolver}
-                </div>
+                <div className="text-3xl font-bold text-blue-400">{cierreHoy.medParaDevolver}</div>
               </div>
               <div className="bg-zinc-800 rounded-xl p-4 text-center">
                 <div className="text-zinc-400 text-xs uppercase mb-1">Rellenas desecho</div>
-                <div className="text-3xl font-bold text-red-400">
-                  {cierreHoy.medRellenaDesecho}
-                </div>
+                <div className="text-3xl font-bold text-red-400">{cierreHoy.medRellenaDesecho}</div>
               </div>
               <div className="bg-zinc-800 rounded-xl p-4 text-center">
                 <div className="text-zinc-400 text-xs uppercase mb-1">Trenzas sobrantes</div>
-                <div className="text-3xl font-bold text-orange-400">
-                  {cierreHoy.trenzasSobrantes}
-                </div>
+                <div className="text-3xl font-bold text-orange-400">{cierreHoy.trenzasSobrantes}</div>
               </div>
               <div className="bg-zinc-800 rounded-xl p-4 text-center">
                 <div className="text-zinc-400 text-xs uppercase mb-1">Latas crudas p/ manana</div>
-                <div className="text-3xl font-bold text-purple-400">
-                  {cierreHoy.latasCrudasQuedan}
-                </div>
+                <div className="text-3xl font-bold text-purple-400">{cierreHoy.latasCrudasQuedan}</div>
+                {cierreHoy.medCrudasQuedan > 0 && (
+                  <div className="text-zinc-400 text-xs mt-1">{cierreHoy.medCrudasQuedan} unidades</div>
+                )}
               </div>
             </div>
             {cierreHoy.observacion && (
@@ -272,18 +266,36 @@ export default function CierreDelDia({
               />
             </div>
 
+            {/* LATAS CRUDAS — ahora con latas Y unidades */}
             <div className="bg-zinc-800/50 rounded-xl p-4 space-y-3">
               <div className="text-white font-semibold">Latas crudas que quedan para manana</div>
               <div className="text-zinc-400 text-xs">Solo si la fabrica pidio que las dejemos</div>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                placeholder="0"
-                value={latasCrudasQuedan}
-                onChange={(e) => setLatasCrudasQuedan(e.target.value)}
-                className={inputClass}
-              />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelClass}>Latas</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    placeholder="0"
+                    value={latasCrudasQuedan}
+                    onChange={(e) => setLatasCrudasQuedan(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Unidades</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    placeholder="0"
+                    value={medCrudasQuedan}
+                    onChange={(e) => setMedCrudasQuedan(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
             </div>
 
             <div>
