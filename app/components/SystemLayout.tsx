@@ -90,7 +90,6 @@ export default function SystemLayout({
 
   const adminTabs = [
     "stock",
-    "pedidos",
     "compras",
     "productos",
     "documentacion",
@@ -199,7 +198,7 @@ export default function SystemLayout({
             {tab === "solicitar" && (
               <div className="text-zinc-400 text-sm">Solicitar no disponible</div>
             )}
-            {tab === "pedidos" && (
+            {/* {tab === "pedidos" && (
               <div className="space-y-3">
                 {activeOrders.map((o) => {
                   const remaining = o.quantity - o.delivered;
@@ -221,7 +220,7 @@ export default function SystemLayout({
                   );
                 })}
               </div>
-            )}
+            )} */}
             {tab === "documentacion" && (
               <DocumentsPanel location={effectiveLocation} />
             )}

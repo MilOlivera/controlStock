@@ -6,22 +6,15 @@ import { useOrders } from "../context/OrdersContext";
 import { useMovements } from "../context/MovementsContext";
 import { useSuppliers } from "../context/SupplierContext";
 
-export default function AdminPurchases({
-  location,
-}: {
-  location: string;
-}) {
+export default function AdminPurchases({ location }: { location: string }) {
   const { getProductsByLocation, updateVariantStock } = useInventory();
   const { orders, deliverOrder } = useOrders();
   const { addMovement } = useMovements();
   const { suppliers, addSupplier } = useSuppliers();
 
   const visibleProducts = getProductsByLocation(location);
-
   const sortedProducts = useMemo(() =>
-    [...visibleProducts].sort((a, b) =>
-      a.name.localeCompare(b.name, "es", { sensitivity: "base" })
-    ),
+    [...visibleProducts].sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" })),
     [visibleProducts]
   );
 
@@ -30,13 +23,12 @@ export default function AdminPurchases({
   const [selectedVariant, setSelectedVariant] = useState("");
   const [quantity, setQuantity] = useState(0);
   const [unitPrice, setUnitPrice] = useState(0);
+  const [iva, setIva] = useState<0 | 10.5 | 21>(0);
   const [supplier, setSupplier] = useState("");
   const [success, setSuccess] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  const selectedProductData = visibleProducts.find(
-    (p) => p.name === selectedProduct
-  );
+  const selectedProductData = visibleProducts.find((p) => p.name === selectedProduct);
 
   const brands = useMemo(() => {
     if (!selectedProductData) return [];
@@ -54,7 +46,9 @@ export default function AdminPurchases({
   );
 
   const stockActual = selectedVariantData?.stock?.[location] ?? 0;
-  const costoTotal = quantity * unitPrice;
+  const costoNeto = quantity * unitPrice;
+  const montoIva = costoNeto * (iva / 100);
+  const costoTotal = costoNeto + montoIva
 
   async function createSupplier() {
     const name = prompt("Nombre del proveedor");
@@ -82,23 +76,23 @@ export default function AdminPurchases({
       alert("Completá producto, variante y cantidad");
       return;
     }
-
     setGuardando(true);
     try {
       const product = visibleProducts.find((p) => p.name === selectedProduct);
       if (!product) return;
-
       const variant = product.variants.find((v) => v.id === selectedVariant);
       if (!variant) return;
-
       const current = variant.stock?.[location] ?? 0;
 
       await updateVariantStock(selectedProduct, variant.id, location, current + quantity);
       autoDeliverOrders(selectedProduct, quantity);
-      await addMovement(selectedProduct, location, "ingreso", quantity, unitPrice, supplier);
+      // Guardamos el precio unitario con IVA incluido para que los gráficos reflejen el costo real
+      const precioConIva = unitPrice * (1 + iva / 100)
+      await addMovement(selectedProduct, location, "ingreso", quantity, precioConIva, supplier);
 
       setQuantity(0);
       setUnitPrice(0);
+      setIva(0);
       setSelectedBrand("");
       setSelectedVariant("");
       setSupplier("");
@@ -120,26 +114,17 @@ export default function AdminPurchases({
 
   return (
     <div className="space-y-6">
-
       <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 space-y-4">
         <h2 className="text-lg font-bold text-white">Registrar compra</h2>
 
         {/* PRODUCTO */}
         <div>
           <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Producto</label>
-          <select
-            value={selectedProduct}
-            onChange={(e) => {
-              setSelectedProduct(e.target.value);
-              setSelectedBrand("");
-              setSelectedVariant("");
-            }}
-            className={inputClass}
-          >
+          <select value={selectedProduct} onChange={(e) => {
+            setSelectedProduct(e.target.value); setSelectedBrand(""); setSelectedVariant("");
+          }} className={inputClass}>
             <option value="">Seleccionar producto</option>
-            {sortedProducts.map((p) => (
-              <option key={p.id} value={p.name}>{p.name}</option>
-            ))}
+            {sortedProducts.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
           </select>
         </div>
 
@@ -147,18 +132,9 @@ export default function AdminPurchases({
         {selectedProductData && (
           <div>
             <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Marca</label>
-            <select
-              value={selectedBrand}
-              onChange={(e) => {
-                setSelectedBrand(e.target.value);
-                setSelectedVariant("");
-              }}
-              className={inputClass}
-            >
+            <select value={selectedBrand} onChange={(e) => { setSelectedBrand(e.target.value); setSelectedVariant(""); }} className={inputClass}>
               <option value="">Seleccionar marca</option>
-              {brands.map((b) => (
-                <option key={b} value={b}>{b}</option>
-              ))}
+              {brands.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
         )}
@@ -167,15 +143,9 @@ export default function AdminPurchases({
         {selectedBrand && (
           <div>
             <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Presentacion</label>
-            <select
-              value={selectedVariant}
-              onChange={(e) => setSelectedVariant(e.target.value)}
-              className={inputClass}
-            >
+            <select value={selectedVariant} onChange={(e) => setSelectedVariant(e.target.value)} className={inputClass}>
               <option value="">Seleccionar presentacion</option>
-              {filteredVariants.map((v) => (
-                <option key={v.id} value={v.id}>{v.presentation} • {v.volume}</option>
-              ))}
+              {filteredVariants.map((v) => <option key={v.id} value={v.id}>{v.presentation} • {v.volume}</option>)}
             </select>
           </div>
         )}
@@ -192,35 +162,54 @@ export default function AdminPurchases({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Cantidad</label>
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={quantity || ""}
+              <input type="number" min="0" placeholder="0" value={quantity || ""}
                 onChange={(e) => setQuantity(Math.max(0, Number(e.target.value)))}
-                className={inputClass + " text-center text-xl font-bold"}
-              />
+                className={inputClass + " text-center text-xl font-bold"} />
             </div>
             <div>
-              <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Precio unitario</label>
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={unitPrice || ""}
+              <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Precio unitario (sin IVA)</label>
+              <input type="number" min="0" placeholder="0" value={unitPrice || ""}
                 onChange={(e) => setUnitPrice(Math.max(0, Number(e.target.value)))}
-                className={inputClass + " text-center text-xl font-bold"}
-              />
+                className={inputClass + " text-center text-xl font-bold"} />
+            </div>
+          </div>
+        )}
+
+        {/* IVA */}
+        {selectedVariant && (
+          <div>
+            <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">IVA</label>
+            <div className="flex gap-2">
+              {([0, 10.5, 21] as const).map((pct) => (
+                <button key={pct} onClick={() => setIva(pct)}
+                  className={`flex-1 py-3 rounded-xl text-sm font-bold transition ${
+                    iva === pct
+                      ? "bg-blue-600 text-white border border-blue-500"
+                      : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-white"
+                  }`}>
+                  {pct === 0 ? "Sin IVA" : `${pct}%`}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
         {/* COSTO TOTAL */}
         {quantity > 0 && unitPrice > 0 && (
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 text-center">
-            <div className="text-zinc-400 text-xs uppercase mb-1">Costo total</div>
-            <div className="text-2xl font-bold text-blue-400">
-              ${Math.round(costoTotal).toLocaleString("es-AR")}
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-zinc-400">Neto</span>
+              <span className="text-zinc-300">${Math.round(costoNeto).toLocaleString("es-AR")}</span>
+            </div>
+            {iva > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-zinc-400">IVA {iva}%</span>
+                <span className="text-yellow-400">+ ${Math.round(montoIva).toLocaleString("es-AR")}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t border-blue-500/20 pt-2">
+              <span className="text-zinc-300 text-sm">Total</span>
+              <span className="text-2xl font-bold text-blue-400">${Math.round(costoTotal).toLocaleString("es-AR")}</span>
             </div>
           </div>
         )}
@@ -230,22 +219,11 @@ export default function AdminPurchases({
           <div>
             <label className="text-zinc-400 text-xs uppercase tracking-wider mb-1 block">Proveedor</label>
             <div className="flex gap-2">
-              <select
-                value={supplier}
-                onChange={(e) => setSupplier(e.target.value)}
-                className={inputClass}
-              >
+              <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className={inputClass}>
                 <option value="">Sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.firestoreId ?? s.name} value={s.name}>{s.name}</option>
-                ))}
+                {suppliers.map((s) => <option key={s.firestoreId ?? s.name} value={s.name}>{s.name}</option>)}
               </select>
-              <button
-                onClick={createSupplier}
-                className="bg-zinc-700 hover:bg-zinc-600 px-4 rounded-xl text-white font-bold transition shrink-0"
-              >
-                +
-              </button>
+              <button onClick={createSupplier} className="bg-zinc-700 hover:bg-zinc-600 px-4 rounded-xl text-white font-bold transition shrink-0">+</button>
             </div>
           </div>
         )}
@@ -264,11 +242,8 @@ export default function AdminPurchases({
         )}
 
         {/* BOTON */}
-        <button
-          onClick={handleApply}
-          disabled={guardando || !selectedVariant || quantity <= 0}
-          className="w-full bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold text-lg py-4 rounded-2xl transition active:scale-95"
-        >
+        <button onClick={handleApply} disabled={guardando || !selectedVariant || quantity <= 0}
+          className="w-full bg-green-700 hover:bg-green-600 disabled:opacity-40 text-white font-bold text-lg py-4 rounded-2xl transition active:scale-95">
           {guardando ? "Guardando..." : "Registrar compra"}
         </button>
 
@@ -278,7 +253,6 @@ export default function AdminPurchases({
           </div>
         )}
       </div>
-
     </div>
   );
 }

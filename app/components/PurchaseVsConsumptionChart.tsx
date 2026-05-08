@@ -2,8 +2,8 @@
 
 import { useMovements } from "../context/MovementsContext";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -19,93 +19,60 @@ export default function PurchaseVsConsumptionChart({
 }) {
   const { movements } = useMovements();
 
-  /* ---------- FILTRO LOCAL ---------- */
   function matchesLocation(m: any) {
-    return (
-      location === "all" ||
-      m.location === location
-    );
+    return location === "all" || m.location === location;
   }
 
   const filtered = movements.filter(matchesLocation);
 
-  /* ---------- AGRUPAR POR MES ---------- */
-  const monthly: Record<
-    string,
-    { comprado: number; consumido: number }
-  > = {};
+  const monthly: Record<string, { comprado: number; consumido: number }> = {};
 
   filtered.forEach((m: any) => {
     const d = new Date(m.date);
+    const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
 
-    const key =
-      d.getFullYear() +
-      "-" +
-      String(d.getMonth() + 1).padStart(2, "0");
+    if (!monthly[key]) monthly[key] = { comprado: 0, consumido: 0 };
 
-    if (!monthly[key]) {
-      monthly[key] = {
-        comprado: 0,
-        consumido: 0,
-      };
-    }
-
-    /* compras */
     if (m.type === "ingreso") {
-      monthly[key].comprado +=
-        Number(m.quantity || 0);
+      monthly[key].comprado += Number(m.quantity || 0);
     }
 
-    /* consumo real */
-    if (
-      m.type === "ajuste" &&
-      m.quantity < 0
-    ) {
-      monthly[key].consumido +=
-        Math.abs(Number(m.quantity || 0));
+    if (m.type === "ajuste" && m.quantity < 0) {
+      monthly[key].consumido += Math.abs(Number(m.quantity || 0));
     }
   });
 
-  /* ---------- ORDENAR MESES ---------- */
+  // Ordenar cronológicamente (más viejo primero)
   const data = Object.entries(monthly)
-    .sort(
-      ([a], [b]) =>
-        new Date(a + "-01").getTime() -
-        new Date(b + "-01").getTime()
-    )
+    .sort(([a], [b]) => new Date(a + "-01").getTime() - new Date(b + "-01").getTime())
     .map(([month, vals]) => ({
       month,
       comprado: vals.comprado,
       consumido: vals.consumido,
     }));
 
+  if (data.length === 0) {
+    return (
+      <div className="bg-zinc-900 p-4 rounded text-zinc-500 text-sm text-center py-10">
+        Sin datos suficientes
+      </div>
+    );
+  }
+
   return (
     <div className="bg-zinc-900 p-4 rounded">
-      <ResponsiveContainer
-        width="100%"
-        height={260}
-      >
-        <LineChart data={data}>
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
           <CartesianGrid stroke="#333" />
-          <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip />
+          <XAxis dataKey="month" tick={{ fill: '#888', fontSize: 11 }} />
+          <YAxis tick={{ fill: '#888', fontSize: 11 }} />
+          <Tooltip
+            contentStyle={{ backgroundColor: '#111', border: '0.5px solid #333', borderRadius: 8, fontSize: 12 }}
+          />
           <Legend />
-
-          <Line
-            type="monotone"
-            dataKey="comprado"
-            stroke="#60a5fa"
-            name="Comprado"
-          />
-
-          <Line
-            type="monotone"
-            dataKey="consumido"
-            stroke="#22c55e"
-            name="Consumido"
-          />
-        </LineChart>
+          <Bar dataKey="comprado" fill="#60a5fa" radius={[3, 3, 0, 0]} name="Comprado" />
+          <Bar dataKey="consumido" fill="#22c55e" radius={[3, 3, 0, 0]} name="Consumido" />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

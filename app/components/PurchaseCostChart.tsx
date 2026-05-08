@@ -2,8 +2,8 @@
 
 import { useMovements } from "../context/MovementsContext";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -23,66 +23,56 @@ export default function PurchaseCostChart({
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
 
-  /* ---------- FILTRADO ---------- */
   const filtered = movements.filter((m) => {
-    const isPurchase = m.type === "ingreso";
-
-    const inRange = m.date >= cutoff;
-
-    const matchesLocation =
-      location === "all" ||
-      m.location === location;
-
     return (
-      isPurchase &&
-      inRange &&
-      matchesLocation
+      m.type === "ingreso" &&
+      m.date >= cutoff &&
+      (location === "all" || m.location === location)
     );
   });
 
-  /* ---------- AGRUPAR POR FECHA ---------- */
+  // Agrupar por fecha usando clave ordenable YYYY-MM-DD
   const grouped: Record<string, number> = {};
 
   filtered.forEach((m) => {
-    const date = m.date.toLocaleDateString();
-
-    const qty = Number(m.quantity || 0);
-    const price = Number(m.unitPrice || 0);
-
-    const cost = qty * price;
-
-    if (!grouped[date]) {
-      grouped[date] = 0;
-    }
-
-    grouped[date] += cost;
+    const d = m.date
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    if (!grouped[key]) grouped[key] = 0
+    grouped[key] += Number(m.quantity || 0) * Number(m.unitPrice || 0)
   });
 
-  /* ---------- DATA FINAL ---------- */
-  const data = Object.entries(grouped).map(
-    ([date, cost]) => ({
-      date,
-      costo: Number(cost) || 0,
-    })
-  );
+  // Ordenar cronológicamente
+  const data = Object.entries(grouped)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, costo]) => ({
+      date: key.split("-").reverse().join("/"), // DD/MM/YYYY para mostrar
+      costo: Math.round(costo),
+    }));
+
+  if (data.length === 0) {
+    return (
+      <div className="bg-zinc-900 p-4 rounded text-zinc-500 text-sm text-center py-10">
+        Sin compras en este período
+      </div>
+    )
+  }
 
   return (
     <div className="bg-zinc-900 p-4 rounded">
-      <ResponsiveContainer
-        width="100%"
-        height={250}
-      >
-        <LineChart data={data}>
+      <ResponsiveContainer width="100%" height={250}>
+        <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
           <CartesianGrid stroke="#333" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Line
-            type="monotone"
-            dataKey="costo"
-            stroke="#38bdf8"
+          <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 11 }} />
+          <YAxis
+            tick={{ fill: '#888', fontSize: 11 }}
+            tickFormatter={(v) => `$${Math.round(v / 1000)}k`}
           />
-        </LineChart>
+          <Tooltip
+            contentStyle={{ backgroundColor: '#111', border: '0.5px solid #333', borderRadius: 8, fontSize: 12 }}
+            formatter={(v: any) => [`$${Number(v).toLocaleString('es-AR')}`, 'Costo']}
+          />
+          <Bar dataKey="costo" fill="#38bdf8" radius={[3, 3, 0, 0]} name="Costo $" />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

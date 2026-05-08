@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useMovements } from "../context/MovementsContext";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -15,114 +15,75 @@ import {
 export default function ConsumptionChart({
   location,
 }: {
-  days?: number; // ya no se usa, pero no rompe llamadas existentes
+  days?: number;
   location: string | "all";
 }) {
   const { movements } = useMovements();
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
 
-  const [selectedProduct, setSelectedProduct] =
-    useState<string>("");
-
-  /* ---------- FILTRO LOCAL ---------- */
   function matchesLocation(m: any) {
-    return (
-      location === "all" ||
-      m.location === location
-    );
+    return location === "all" || m.location === location;
   }
 
-  /* ---------- MOVIMIENTOS FILTRADOS ---------- */
-  const filtered = movements.filter(
-    (m) => matchesLocation(m)
-  );
+  const filtered = movements.filter(matchesLocation);
 
-  /* ---------- PRODUCTOS DISPONIBLES ---------- */
-  const products = Array.from(
-    new Set(filtered.map((m) => m.product))
-  );
+  const products = Array.from(new Set(filtered.map((m) => m.product))).sort();
 
-  /* ---------- AGRUPAR STOCK POR MES ---------- */
-  const monthlyStock: any = {};
-
-  let runningStock = 0;
+  // Agrupar consumo real por mes (ajustes negativos = lo que se consumió)
+  const monthlyConsumo: Record<string, number> = {};
 
   filtered
-    .filter((m) =>
-      selectedProduct
-        ? m.product === selectedProduct
-        : false
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.date).getTime() -
-        new Date(b.date).getTime()
-    )
-    .forEach((m) => {
-      runningStock += m.quantity;
-
+    .filter((m: any) => selectedProduct ? m.product === selectedProduct : false)
+    .forEach((m: any) => {
+      if (m.type !== "ajuste" || m.quantity >= 0) return;
       const d = new Date(m.date);
-      const key =
-        d.getFullYear() +
-        "-" +
-        String(d.getMonth() + 1).padStart(
-          2,
-          "0"
-        );
-
-      /* guardamos último stock del mes */
-      monthlyStock[key] = runningStock;
+      const key = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      if (!monthlyConsumo[key]) monthlyConsumo[key] = 0;
+      monthlyConsumo[key] += Math.abs(Number(m.quantity || 0));
     });
 
-  const data = Object.entries(
-    monthlyStock
-  ).map(([month, stock]) => ({
-    month,
-    stock: Math.max(0, Number(stock)),
-  }));
+  // Ordenar cronológicamente (más viejo primero)
+  const data = Object.entries(monthlyConsumo)
+    .sort(([a], [b]) => new Date(a + "-01").getTime() - new Date(b + "-01").getTime())
+    .map(([month, consumido]) => ({ month, consumido }));
 
   return (
     <div className="bg-zinc-900 p-4 rounded space-y-3">
-      {/* selector producto */}
       <div className="flex justify-center">
         <select
           value={selectedProduct}
-          onChange={(e) =>
-            setSelectedProduct(
-              e.target.value
-            )
-          }
-          className="bg-zinc-800 p-2 rounded"
+          onChange={(e) => setSelectedProduct(e.target.value)}
+          className="bg-zinc-800 p-2 rounded text-sm"
         >
-          <option value="">
-            Seleccionar producto
-          </option>
-
+          <option value="">Seleccionar producto</option>
           {products.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
+            <option key={p} value={p}>{p}</option>
           ))}
         </select>
       </div>
 
-      <ResponsiveContainer
-        width="100%"
-        height={260}
-      >
-        <LineChart data={data}>
-          <CartesianGrid stroke="#333" />
-          <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip />
-
-          <Line
-            type="monotone"
-            dataKey="stock"
-            stroke="#22c55e"
-            name="Stock"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      {!selectedProduct ? (
+        <div className="text-zinc-500 text-sm text-center py-10">
+          Seleccioná un producto para ver su consumo mensual
+        </div>
+      ) : data.length === 0 ? (
+        <div className="text-zinc-500 text-sm text-center py-10">
+          Sin datos de consumo para este producto
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
+            <CartesianGrid stroke="#333" />
+            <XAxis dataKey="month" tick={{ fill: '#888', fontSize: 11 }} />
+            <YAxis tick={{ fill: '#888', fontSize: 11 }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#111', border: '0.5px solid #333', borderRadius: 8, fontSize: 12 }}
+              formatter={(v: any) => [v, 'Consumido']}
+            />
+            <Bar dataKey="consumido" fill="#22c55e" radius={[3, 3, 0, 0]} name="Consumido" />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }

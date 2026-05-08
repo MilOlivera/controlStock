@@ -2,8 +2,8 @@
 
 import { useMovements } from "../context/MovementsContext";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -21,61 +21,52 @@ export default function SpendingChart({
   const filtered = movements.filter(
     (m) =>
       m.type === "ingreso" &&
-      (location === "all" ||
-        m.location === location)
+      (location === "all" || m.location === location)
   );
 
-  const grouped: any = {};
+  const grouped: Record<string, { totalCost: number; prices: number[] }> = {};
 
   filtered.forEach((m) => {
-    const month = `${m.date.getMonth() + 1}/${m.date.getFullYear()}`;
-
-    if (!grouped[month]) {
-      grouped[month] = {
-        totalCost: 0,
-        prices: [],
-      };
-    }
-
-    grouped[month].totalCost +=
-      m.quantity * m.unitPrice;
-
-    grouped[month].prices.push(
-      m.unitPrice
-    );
+    // Clave ordenable: YYYY-MM
+    const key = `${m.date.getFullYear()}-${String(m.date.getMonth() + 1).padStart(2, "0")}`
+    if (!grouped[key]) grouped[key] = { totalCost: 0, prices: [] }
+    grouped[key].totalCost += m.quantity * m.unitPrice
+    grouped[key].prices.push(m.unitPrice)
   });
 
-  const data = Object.entries(grouped).map(
-    ([month, info]: any) => {
-      const avgPrice =
-        info.prices.reduce(
-          (a: number, b: number) => a + b,
-          0
-        ) / info.prices.length;
+  // Ordenar cronológicamente (más viejo → más nuevo)
+  const data = Object.entries(grouped)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, info]) => ({
+      month: key.slice(5) + "/" + key.slice(0, 4), // MM/YYYY para mostrar
+      gasto: Math.round(info.totalCost),
+      precioMedio: Math.round(info.prices.reduce((a, b) => a + b, 0) / info.prices.length),
+    }))
 
-      return {
-        month,
-        gasto: info.totalCost,
-        precioMedio: avgPrice,
-      };
-    }
-  );
+  if (data.length === 0) {
+    return (
+      <div className="bg-zinc-900 p-4 rounded text-zinc-500 text-sm text-center py-10">
+        Sin datos de gasto
+      </div>
+    )
+  }
 
   return (
     <div className="bg-zinc-900 p-4 rounded">
       <ResponsiveContainer width="100%" height={260}>
-        <LineChart data={data}>
+        <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 4 }}>
           <CartesianGrid stroke="#333" />
-          <XAxis dataKey="month" />
-          <YAxis />
-          <Tooltip />
-          <Line
-            type="monotone"
-            dataKey="gasto"
-            stroke="#22c55e"
-            name="Gasto $"
+          <XAxis dataKey="month" tick={{ fill: '#888', fontSize: 11 }} />
+          <YAxis
+            tick={{ fill: '#888', fontSize: 11 }}
+            tickFormatter={(v) => `$${Math.round(v / 1000)}k`}
           />
-        </LineChart>
+          <Tooltip
+            contentStyle={{ backgroundColor: '#111', border: '0.5px solid #333', borderRadius: 8, fontSize: 12 }}
+            formatter={(v: any) => [`$${Number(v).toLocaleString('es-AR')}`, 'Gasto']}
+          />
+          <Bar dataKey="gasto" fill="#22c55e" radius={[3, 3, 0, 0]} name="Gasto $" />
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );
